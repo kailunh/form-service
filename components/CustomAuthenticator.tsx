@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Amplify, Auth } from 'aws-amplify'
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -51,24 +54,67 @@ const translations = {
   }
 }
 
+const signInSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+})
+
+const signUpSchema = signInSchema.extend({
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+})
+
+const confirmSignUpSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  code: z.string().min(6, { message: "Confirmation code must be at least 6 characters" }),
+})
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+})
+
+const resetPasswordSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  code: z.string().min(6, { message: "Confirmation code must be at least 6 characters" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+})
+
 export function CustomAuthenticator({ children }) {
   const [language, setLanguage] = useState("en")
   const { theme, setTheme } = useTheme()
   const t = translations[language]
   const [authState, setAuthState] = useState("signIn")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [code, setCode] = useState("")
   const [error, setError] = useState("")
   const [user, setUser] = useState(null)
+  const [email, setEmail] = useState("")
 
   const [mounted, setMounted] = useState(false)
+
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
+    resolver: zodResolver(
+      authState === "signIn" ? signInSchema :
+      authState === "signUp" ? signUpSchema :
+      authState === "confirmSignUp" ? confirmSignUpSchema :
+      authState === "forgotPassword" ? forgotPasswordSchema :
+      authState === "resetPassword" ? resetPasswordSchema :
+      signInSchema
+    ),
+  })
 
   useEffect(() => {
     setMounted(true)
     checkUser()
   }, [])
+
+  useEffect(() => {
+    reset()
+    setError("")
+    if (authState === "confirmSignUp" || authState === "resetPassword") {
+      setValue("email", email)
+    }
+  }, [authState, reset, setValue, email])
 
   const checkUser = async () => {
     try {
@@ -81,56 +127,34 @@ export function CustomAuthenticator({ children }) {
     }
   }
 
-  const handleSignIn = async (e) => {
-    e.preventDefault()
+  const onSubmit = async (data) => {
+    setError("")
     try {
-      const user = await Auth.signIn(email, password)
-      setUser(user)
-      setAuthState("authenticated")
-    } catch (error) {
-      setError(error.message)
-    }
-  }
-
-  const handleSignUp = async (e) => {
-    e.preventDefault()
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      return
-    }
-    try {
-      await Auth.signUp({ username: email, password })
-      setAuthState("confirmSignUp")
-    } catch (error) {
-      setError(error.message)
-    }
-  }
-
-  const handleConfirmSignUp = async (e) => {
-    e.preventDefault()
-    try {
-      await Auth.confirmSignUp(email, code)
-      setAuthState("signIn")
-    } catch (error) {
-      setError(error.message)
-    }
-  }
-
-  const handleForgotPassword = async (e) => {
-    e.preventDefault()
-    try {
-      await Auth.forgotPassword(email)
-      setAuthState("resetPassword")
-    } catch (error) {
-      setError(error.message)
-    }
-  }
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault()
-    try {
-      await Auth.forgotPasswordSubmit(email, code, password)
-      setAuthState("signIn")
+      switch (authState) {
+        case "signIn":
+          const user = await Auth.signIn(data.email, data.password)
+          setUser(user)
+          setAuthState("authenticated")
+          break
+        case "signUp":
+          await Auth.signUp({ username: data.email, password: data.password })
+          setEmail(data.email)
+          setAuthState("confirmSignUp")
+          break
+        case "confirmSignUp":
+          await Auth.confirmSignUp(data.email, data.code)
+          setAuthState("signIn")
+          break
+        case "forgotPassword":
+          await Auth.forgotPassword(data.email)
+          setEmail(data.email)
+          setAuthState("resetPassword")
+          break
+        case "resetPassword":
+          await Auth.forgotPasswordSubmit(data.email, data.code, data.password)
+          setAuthState("signIn")
+          break
+      }
     } catch (error) {
       setError(error.message)
     }
@@ -146,31 +170,40 @@ export function CustomAuthenticator({ children }) {
     }
   }
 
+  const resendConfirmationCode = async () => {
+    try {
+      await Auth.resendSignUp(email)
+      setError("Confirmation code resent. Please check your email.")
+    } catch (error) {
+      setError(error.message)
+    }
+  }
+
   const renderAuthForm = () => {
     switch (authState) {
       case "signIn":
         return (
-          <form onSubmit={handleSignIn}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{t.email}</Label>
                 <Input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  {...register("email")}
+                  className={errors.email ? "border-red-500" : ""}
                 />
+                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{t.password}</Label>
                 <Input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                  {...register("password")}
+                  className={errors.password ? "border-red-500" : ""}
                 />
+                {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
@@ -183,37 +216,37 @@ export function CustomAuthenticator({ children }) {
         )
       case "signUp":
         return (
-          <form onSubmit={handleSignUp}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{t.email}</Label>
                 <Input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  {...register("email")}
+                  className={errors.email ? "border-red-500" : ""}
                 />
+                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{t.password}</Label>
                 <Input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                  {...register("password")}
+                  className={errors.password ? "border-red-500" : ""}
                 />
+                {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">{t.confirmPassword}</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
+                  {...register("confirmPassword")}
+                  className={errors.confirmPassword ? "border-red-500" : ""}
                 />
+                {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword.message}</p>}
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
@@ -225,38 +258,50 @@ export function CustomAuthenticator({ children }) {
         )
       case "confirmSignUp":
         return (
-          <form onSubmit={handleConfirmSignUp}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="code">{t.confirmationCode}</Label>
-                <Input
-                  id="code"
-                  type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  required
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full">{t.confirmSignUp}</Button>
-              <Button variant="link" onClick={() => setAuthState("signIn")}>{t.backToSignIn}</Button>
-            </CardFooter>
-          </form>
-        )
-      case "forgotPassword":
-        return (
-          <form onSubmit={handleForgotPassword}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{t.email}</Label>
                 <Input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  {...register("email")}
+                  className={errors.email ? "border-red-500" : ""}
+                  disabled
                 />
+                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="code">{t.confirmationCode}</Label>
+                <Input
+                  id="code"
+                  type="text"
+                  {...register("code")}
+                  className={errors.code ? "border-red-500" : ""}
+                />
+                {errors.code && <p className="text-red-500 text-sm">{errors.code.message}</p>}
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <Button type="submit" className="w-full">{t.confirmSignUp}</Button>
+              <Button variant="link" onClick={resendConfirmationCode}>{t.resendCode}</Button>
+              <Button variant="link" onClick={() => setAuthState("signIn")}>{t.backToSignIn}</Button>
+            </CardFooter>
+          </form>
+        )
+      case "forgotPassword":
+        return (
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">{t.email}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  {...register("email")}
+                  className={errors.email ? "border-red-500" : ""}
+                />
+                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
@@ -267,27 +312,38 @@ export function CustomAuthenticator({ children }) {
         )
       case "resetPassword":
         return (
-          <form onSubmit={handleResetPassword}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">{t.email}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  {...register("email")}
+                  className={errors.email ? "border-red-500" : ""}
+                  disabled
+                />
+                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="code">{t.confirmationCode}</Label>
                 <Input
                   id="code"
                   type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  required
+                  {...register("code")}
+                  className={errors.code ? "border-red-500" : ""}
                 />
+                {errors.code && <p className="text-red-500 text-sm">{errors.code.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="newPassword">{t.password}</Label>
                 <Input
                   id="newPassword"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                  {...register("password")}
+                  className={errors.password ? "border-red-500" : ""}
                 />
+                {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
