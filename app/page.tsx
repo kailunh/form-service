@@ -2,22 +2,27 @@
 
 import { CustomAuthenticator } from "@/components/CustomAuthenticator";
 import { IncomeReportingForm } from "@/components/IncomeReportingForm";
-import { Button } from "@/components/ui/button";
+import { GlobalHeader } from "@/components/GlobalHeader";
+import { useTranslation } from '@/lib/translations';
 
 export default function Home() {
+  const { t } = useTranslation();
+
   return (
-    <CustomAuthenticator>
-      {({ signOut, user }) => {
-        return (
-          <div className="p-4">
-            <h1 className="text-2xl font-bold mb-4">
-              Welcome, {user.attributes.email}
-            </h1>
-            <Button onClick={signOut}>Sign out</Button>
-            <IncomeReportingForm />
-          </div>
-        );
-      }}
-    </CustomAuthenticator>
+    <div className="min-h-screen bg-background text-foreground">
+      <CustomAuthenticator>
+        {({ signOut, user }) => (
+          <>
+            <GlobalHeader signOut={signOut} />
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {/* <h1 className="text-3xl font-bold mb-8">
+                {t('welcome')}, {user.attributes.email}
+              </h1> */}
+              <IncomeReportingForm />
+            </div>
+          </>
+        )}
+      </CustomAuthenticator>
+    </div>
   );
 }
