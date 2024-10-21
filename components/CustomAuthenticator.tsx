@@ -1,52 +1,61 @@
 "use client";
 
-import React, { useState, useEffect } from "react"
-import { Amplify, Auth } from 'aws-amplify'
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { useTranslation } from '@/lib/translations'
-import awsconfig from '../src/aws-exports'
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useTranslation } from '@/lib/translations';
+import { Loader2 } from "lucide-react";
+import { signIn, signUp, resendSignUpCode, confirmSignUp, resetPassword, confirmResetPassword, getCurrentUser } from 'aws-amplify/auth';
+import { useToast } from "@/components/ui/use-toast";
 
-Amplify.configure({ ...awsconfig, ssr: true });
-
+// Define the schemas
 const signInSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
-})
+  email: z.string().email(),
+  password: z.string().min(8),
+});
 
-const signUpSchema = signInSchema.extend({
-  confirmPassword: z.string(),
+const signUpSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  confirmPassword: z.string().min(8),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
-})
+});
 
 const confirmSignUpSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  code: z.string().min(6, { message: "Confirmation code must be at least 6 characters" }),
-})
+  email: z.string().email(),
+  code: z.string().length(6),
+});
 
 const forgotPasswordSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-})
+  email: z.string().email(),
+});
 
 const resetPasswordSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  code: z.string().min(6, { message: "Confirmation code must be at least 6 characters" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
-})
+  email: z.string().email(),
+  code: z.string().length(6),
+  newPassword: z.string().min(8),
+  confirmNewPassword: z.string().min(8),
+}).refine((data) => data.newPassword === data.confirmNewPassword, {
+  message: "Passwords don't match",
+  path: ["confirmNewPassword"],
+});
 
-export function CustomAuthenticator({ children }) {
-  const { t } = useTranslation()
-  const [authState, setAuthState] = useState("signIn")
-  const [error, setError] = useState("")
-  const [user, setUser] = useState(null)
-  const [email, setEmail] = useState("")
+export function CustomAuthenticator({ children, onAuthStateChange }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [authState, setAuthState] = useState("signIn");
+  const [previousAuthState, setPreviousAuthState] = useState(null);
+  const [error, setError] = useState("");
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
     resolver: zodResolver(
@@ -57,87 +66,162 @@ export function CustomAuthenticator({ children }) {
       authState === "resetPassword" ? resetPasswordSchema :
       signInSchema
     ),
-  })
+  });
 
   useEffect(() => {
-    checkUser()
-  }, [])
-
-  useEffect(() => {
-    reset()
-    setError("")
-    if (authState === "confirmSignUp" || authState === "resetPassword") {
-      setValue("email", email)
-    }
-  }, [authState, reset, setValue, email])
+    checkUser();
+  }, []);
 
   const checkUser = async () => {
     try {
-      const userData = await Auth.currentAuthenticatedUser()
-      setUser(userData)
-      setAuthState("authenticated")
+      const userData = await getCurrentUser();
+      setUser(userData);
+      setAuthState("authenticated");
+      onAuthStateChange("authenticated", false, userData);
     } catch (err) {
-      setUser(null)
-      setAuthState("signIn")
+      setUser(null);
+      setAuthState("signIn");
     }
-  }
+  };
+
+  const sendConfirmationCode = async (email) => {
+    try {
+      setIsLoading(true);
+      await resendSignUpCode({ username: email });
+      toast({
+        title: t('confirmationCodeSent'),
+        description: t('confirmationCodeSentDescription'),
+      });
+    } catch (error) {
+      console.error("Error sending confirmation code:", error);
+      toast({
+        title: t('confirmationCodeError'),
+        description: t('confirmationCodeErrorDescription'),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const changeAuthState = (newState, email = "") => {
+    setPreviousAuthState(authState);
+    setAuthState(newState);
+    if (email) {
+      setEmail(email);
+      if (newState === "confirmSignUp") {
+        sendConfirmationCode(email);
+      }
+    }
+  };
+
+  const goBack = () => {
+    if (previousAuthState) {
+      setAuthState(previousAuthState);
+      setPreviousAuthState(null);
+    }
+  };
 
   const onSubmit = async (data) => {
-    setError("")
+    setIsLoading(true);
+    setError("");
     try {
       switch (authState) {
         case "signIn":
-          const user = await Auth.signIn(data.email, data.password)
-          setUser(user)
-          setAuthState("authenticated")
-          break
+          try {
+            const res = await signIn({ username: data.email, password: data.password });
+            if (res.nextStep.signInStep === 'CONFIRM_SIGN_UP') {
+              changeAuthState("confirmSignUp", data.email);
+            } else {
+              await checkUser();
+            }
+          } catch (err) {
+            if (err.name === "UserNotConfirmedException") {
+              changeAuthState("confirmSignUp", data.email);
+            } else {
+              toast({
+                title: t('signInError'),
+                description: t('invalidCredentials'),
+                variant: "destructive",
+              });
+            }
+          }
+          break;
         case "signUp":
-          await Auth.signUp({ username: data.email, password: data.password })
-          setEmail(data.email)
-          setAuthState("confirmSignUp")
-          break
+          try {
+            await signUp({ username: data.email, password: data.password });
+            setEmail(data.email);
+            changeAuthState("confirmSignUp");
+          } catch (err) {
+            toast({
+              title: t('signUpError'),
+              description: t('signUpErrorDescription'),
+              variant: "destructive",
+            });
+          }
+          break;
         case "confirmSignUp":
-          await Auth.confirmSignUp(data.email, data.code)
-          setAuthState("signIn")
-          break
+          try {
+            const res = await confirmSignUp({ username: email, confirmationCode: data.code });
+            console.log("Confirm sign-up", res);
+            changeAuthState("signIn");
+          } catch (err) {
+            toast({
+              title: t('confirmSignUpError'),
+              description: t('confirmSignUpErrorDescription'),
+              variant: "destructive",
+            });
+          }
+          break;
         case "forgotPassword":
-          await Auth.forgotPassword(data.email)
-          setEmail(data.email)
-          setAuthState("resetPassword")
-          break
+          try {
+            await resetPassword({ username: data.email });
+            setEmail(data.email);
+            changeAuthState("resetPassword");
+          } catch (err) {
+            toast({
+              title: t('forgotPasswordError'),
+              description: t('forgotPasswordErrorDescription'),
+              variant: "destructive",
+            });
+          }
+          break;
         case "resetPassword":
-          await Auth.forgotPasswordSubmit(data.email, data.code, data.password)
-          setAuthState("signIn")
-          break
+          try {
+            await confirmResetPassword({ 
+              username: email, 
+              newPassword: data.newPassword, 
+              confirmationCode: data.code 
+            });
+            changeAuthState("signIn");
+          } catch (err) {
+            toast({
+              title: t('resetPasswordError'),
+              description: t('resetPasswordErrorDescription'),
+              variant: "destructive",
+            });
+          }
+          break;
       }
-    } catch (error) {
-      setError(error.message)
+    } catch (err) {
+      toast({
+        title: t('generalError'),
+        description: t('generalErrorDescription'),
+        variant: "destructive",
+      });
     }
-  }
+    setIsLoading(false);
+  };
 
-  const handleSignOut = async () => {
-    try {
-      await Auth.signOut()
-      setUser(null)
-      setAuthState("signIn")
-    } catch (error) {
-      setError(error.message)
-    }
-  }
+  const renderForm = () => {
+    let form;
+    let showBackButton = true;
+    let backButtonText = t('back');
 
-  const resendConfirmationCode = async () => {
-    try {
-      await Auth.resendSignUp(email)
-      setError("Confirmation code resent. Please check your email.")
-    } catch (error) {
-      setError(error.message)
-    }
-  }
-
-  const renderAuthForm = () => {
     switch (authState) {
       case "signIn":
-        return (
+        showBackButton = false;
+        form = (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">{t('email')}</Label>
@@ -159,14 +243,19 @@ export function CustomAuthenticator({ children }) {
               />
               {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
             </div>
-            <Button type="submit" className="w-full">{t('signIn')}</Button>
-            <Button variant="link" onClick={() => setAuthState("forgotPassword")}>{t('forgotPassword')}</Button>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('signIn')}
+            </Button>
+            <Button variant="link" onClick={() => changeAuthState("forgotPassword")}>{t('forgotPassword')}</Button>
             <Separator />
-            <p>{t('dontHaveAccount')} <Button variant="link" onClick={() => setAuthState("signUp")}>{t('signUp')}</Button></p>
+            <p>{t('dontHaveAccount')} <Button variant="link" onClick={() => changeAuthState("signUp")}>{t('signUp')}</Button></p>
           </form>
-        )
+        );
+        break;
       case "signUp":
-        return (
+        backButtonText = t('backToSignIn');
+        form = (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">{t('email')}</Label>
@@ -198,26 +287,20 @@ export function CustomAuthenticator({ children }) {
               />
               {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword.message}</p>}
             </div>
-            <Button type="submit" className="w-full">{t('signUp')}</Button>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('signUp')}
+            </Button>
             <Separator />
-            <p>{t('alreadyHaveAccount')} <Button variant="link" onClick={() => setAuthState("signIn")}>{t('signIn')}</Button></p>
+            <p>{t('alreadyHaveAccount')} <Button variant="link" onClick={() => changeAuthState("signIn")}>{t('signIn')}</Button></p>
           </form>
-        )
+        );
+        break;
       case "confirmSignUp":
-        return (
+        backButtonText = t('backToSignUp');
+        form = (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{t('email')}</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register("email")}
-                className={errors.email ? "border-red-500" : ""}
-                disabled
-              />
-              {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="code">{t('confirmationCode')}</Label>
               <Input
                 id="code"
@@ -225,15 +308,16 @@ export function CustomAuthenticator({ children }) {
                 {...register("code")}
                 className={errors.code ? "border-red-500" : ""}
               />
-              {errors.code && <p className="text-red-500 text-sm">{errors.code.message}</p>}
+              {errors.code && <p className="text-red-500 text-sm mt-1">{errors.code.message}</p>}
             </div>
-            <Button type="submit" className="w-full">{t('confirmSignUp')}</Button>
-            <Button variant="link" onClick={resendConfirmationCode}>{t('resendCode')}</Button>
-            <Button variant="link" onClick={() => setAuthState("signIn")}>{t('backToSignIn')}</Button>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? t('submitting') : t('confirm')}
+            </Button>
           </form>
-        )
+        );
+        break;
       case "forgotPassword":
-        return (
+        form = (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">{t('email')}</Label>
@@ -245,24 +329,17 @@ export function CustomAuthenticator({ children }) {
               />
               {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
             </div>
-            <Button type="submit" className="w-full">{t('resetPassword')}</Button>
-            <Button variant="link" onClick={() => setAuthState("signIn")}>{t('backToSignIn')}</Button>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('resetPassword')}
+            </Button>
+            <Button variant="link" onClick={() => changeAuthState("signIn")}>{t('backToSignIn')}</Button>
           </form>
-        )
+        );
+        break;
       case "resetPassword":
-        return (
+        form = (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{t('email')}</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register("email")}
-                className={errors.email ? "border-red-500" : ""}
-                disabled
-              />
-              {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-            </div>
             <div className="space-y-2">
               <Label htmlFor="code">{t('confirmationCode')}</Label>
               <Input
@@ -274,25 +351,52 @@ export function CustomAuthenticator({ children }) {
               {errors.code && <p className="text-red-500 text-sm">{errors.code.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="newPassword">{t('password')}</Label>
+              <Label htmlFor="newPassword">{t('newPassword')}</Label>
               <Input
                 id="newPassword"
                 type="password"
-                {...register("password")}
-                className={errors.password ? "border-red-500" : ""}
+                {...register("newPassword")}
+                className={errors.newPassword ? "border-red-500" : ""}
               />
-              {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
+              {errors.newPassword && <p className="text-red-500 text-sm">{errors.newPassword.message}</p>}
             </div>
-            <Button type="submit" className="w-full">{t('submit')}</Button>
-            <Button variant="link" onClick={() => setAuthState("signIn")}>{t('backToSignIn')}</Button>
+            <div className="space-y-2">
+              <Label htmlFor="confirmNewPassword">{t('confirmNewPassword')}</Label>
+              <Input
+                id="confirmNewPassword"
+                type="password"
+                {...register("confirmNewPassword")}
+                className={errors.confirmNewPassword ? "border-red-500" : ""}
+              />
+              {errors.confirmNewPassword && <p className="text-red-500 text-sm">{errors.confirmNewPassword.message}</p>}
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('resetPassword')}
+            </Button>
           </form>
-        )
-      case "authenticated":
-        return children({ signOut: handleSignOut, user })
+        );
+        break;
       default:
-        return null
+        return null;
     }
-  }
+
+    return (
+      <div className="space-y-4">
+        {form}
+        {showBackButton && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goBack}
+            className="w-full"
+          >
+            {backButtonText}
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="w-full mx-auto mt-8">
@@ -305,11 +409,11 @@ export function CustomAuthenticator({ children }) {
              authState === "forgotPassword" ? t('forgotPassword') :
              authState === "resetPassword" ? t('resetPassword') : ""}
           </h2>
-          {renderAuthForm()}
+          {renderForm()}
           {error && <p className="text-red-500 text-center mt-4">{error}</p>}
         </div>
       )}
-      {authState === "authenticated" && renderAuthForm()}
+      {authState === "authenticated" && children}
     </div>
-  )
+  );
 }
