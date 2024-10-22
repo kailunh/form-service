@@ -54,8 +54,10 @@ export default function FormPage() {
           console.error('Error fetching form data:', error);
           toast({
             title: t('errorFetchingForm'),
-            description: error.message === 'Unauthorized access' 
-              ? t('unauthorizedAccess') 
+            description: error instanceof Error
+              ? (error.message === 'Unauthorized access' 
+                ? t('unauthorizedAccess') 
+                : t('errorFetchingFormDescription'))
               : t('errorFetchingFormDescription'),
             variant: 'destructive',
           });
