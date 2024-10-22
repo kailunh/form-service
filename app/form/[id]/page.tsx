@@ -29,6 +29,7 @@ export default function FormDetailPage() {
   const fetchForm = async () => {
     try {
       const { data } = await client.models.IncomeReport.get({ id: id as string });
+      console.log(data);
       setForm(data);
     } catch (error) {
       console.error("Error fetching form:", error);

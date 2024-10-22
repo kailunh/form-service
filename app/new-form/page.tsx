@@ -1,7 +1,11 @@
 "use client";
 
 import { GlobalHeader } from "@/components/GlobalHeader";
+import { useParams, useRouter } from 'next/navigation';
 import { IncomeReportingForm } from "@/components/IncomeReportingForm";
+import { Button } from "@/components/ui/button";
+import { useTranslation } from '@/lib/translations';
+import { ArrowLeft } from "lucide-react";
 
 export default function NewFormPage() {
   return (
