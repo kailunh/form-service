@@ -21,7 +21,7 @@ export const schema = a.schema({
       country: a.string().required(),
       createdAt: a.datetime().required(),
       updatedAt: a.datetime().required(),
-  }).authorization((allow) => [allow.publicApiKey()]),
+  }).authorization(allow => [allow.owner().to(['create', 'read', 'update'])]),
 
 });
 
@@ -29,10 +29,5 @@ export type Schema = ClientSchema<typeof schema>;
 
 export const data = defineData({
   schema,
-  authorizationModes: {
-    defaultAuthorizationMode: "apiKey",
-    apiKeyAuthorizationMode: {
-      expiresInDays: 30,
-    },
-  },
+
 });

@@ -27,7 +27,11 @@ import { naicsCodes } from '@/lib/naicsCodes';
 import { states } from '@/lib/states';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useRouter } from 'next/navigation';
+import { Amplify } from 'aws-amplify';
+import outputs from "@/amplify_outputs.json";
+import { getCurrentUser } from 'aws-amplify/auth';
 
+Amplify.configure(outputs);
 const client = generateClient<Schema>();
 
 const formSchema = z.object({
@@ -108,10 +112,23 @@ export function IncomeReportingForm() {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
+      if (!client.models.IncomeReport) {
+        throw new Error('IncomeReport model not found');
+      }
+      
+      // Get the current user
+      const user = await getCurrentUser();
+      
+      // Submit the form with the user's ID
       await client.models.IncomeReport.create({
         ...data,
-        shareholders: JSON.stringify(data.shareholders),
-      });
+        shareholders: JSON.stringify(data.shareholders)
+      },
+      {
+        authMode: 'userPool',
+      }
+    );
+      
       toast({
         title: t('formSubmitted'),
         description: t('formSubmittedDescription'),
@@ -121,11 +138,12 @@ export function IncomeReportingForm() {
       console.error('Error submitting form:', error);
       toast({
         title: t('formSubmissionError'),
-        description: t('formSubmissionErrorDescription'),
+        description: error.message || t('formSubmissionErrorDescription'),
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleBack = () => {
@@ -133,8 +151,8 @@ export function IncomeReportingForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-      <div className="space-y-4">
+<form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
+  <div className="space-y-4">
         <h2 className="text-2xl font-bold">{t('companyInformation')}</h2>
         <Controller
           name="companyName"
@@ -170,7 +188,7 @@ export function IncomeReportingForm() {
           name="cityStateCountryZip"
           control={control}
           render={({ field }) => (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Label htmlFor="cityStateCountryZip">
                 {t('cityStateCountryZip')}
               </Label>
@@ -389,8 +407,8 @@ export function IncomeReportingForm() {
                 <SelectValue placeholder={t('selectAccountingMethod')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cash">{t('cashMethod')}</SelectItem>
-                <SelectItem value="accrual">{t('accrualMethod')}</SelectItem>
+                <SelectItem value="cashMethod">{t('cashMethod')}</SelectItem>
+                <SelectItem value="accrualMethod">{t('accrualMethod')}</SelectItem>
               </SelectContent>
             </Select>
           )}
