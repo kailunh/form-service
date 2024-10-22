@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,10 +36,6 @@ const client = generateClient<Schema>();
 
 const formSchema = z.object({
   companyName: z.string().min(1, { message: 'Company name is required' }),
-  companyAddress: z.string().min(1, { message: 'Company address is required' }),
-  cityStateCountryZip: z
-    .string()
-    .min(1, { message: 'City, state, country, and ZIP are required' }),
   ein: z.string().min(1, { message: 'EIN is required' }),
   dateIncorporated: z
     .string()
@@ -81,10 +77,8 @@ export function IncomeReportingForm() {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: useMemo(() => ({
       companyName: '',
-      companyAddress: '',
-      cityStateCountryZip: '',
       ein: '',
       dateIncorporated: '',
       isInitialReturn: false,
@@ -101,7 +95,7 @@ export function IncomeReportingForm() {
       state: '',
       zipCode: '',
       country: '',
-    },
+    }), [])
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -115,12 +109,8 @@ export function IncomeReportingForm() {
       if (!client.models.IncomeReport) {
         throw new Error('IncomeReport model not found');
       }
-      
-      // Get the current user
-      const user = await getCurrentUser();
-      
-      // Submit the form with the user's ID
-      await client.models.IncomeReport.create({
+            
+      const res = await client.models.IncomeReport.create({
         ...data,
         shareholders: JSON.stringify(data.shareholders)
       },
@@ -128,7 +118,7 @@ export function IncomeReportingForm() {
         authMode: 'userPool',
       }
     );
-      
+
       toast({
         title: t('formSubmitted'),
         description: t('formSubmittedDescription'),
@@ -147,6 +137,11 @@ export function IncomeReportingForm() {
   };
 
   const handleBack = () => {
+    router.push('/');
+  };
+
+  const handleCancel = () => {
+    // Navigate back to the dashboard or previous page
     router.push('/');
   };
 
@@ -169,38 +164,83 @@ export function IncomeReportingForm() {
             </div>
           )}
         />
+         <div>
+        <Label htmlFor="address">{t('address')}</Label>
         <Controller
-          name="companyAddress"
+          name="address"
+          control={control}
+          render={({ field }) => <Input {...field} />}
+        />
+        {errors.address && (
+          <p className="text-red-500 text-sm mt-1">{errors.address.message}</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="city">{t('city')}</Label>
+          <Controller
+            name="city"
+            control={control}
+            render={({ field }) => <Input {...field} />}
+          />
+          {errors.city && (
+            <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>
+          )}
+        </div>
+        <div>
+          <Label htmlFor="state">{t('state')}</Label>
+          <Controller
+            name="state"
+            control={control}
+            render={({ field }) => (
+              <SearchableSelect
+                options={states}
+                value={field.value}
+                onValueChange={field.onChange}
+                placeholder={t('selectState')}
+                emptyMessage={t('noStatesFound')}
+              />
+            )}
+          />
+          {errors.state && (
+            <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="zipCode">{t('zipCode')}</Label>
+        <Controller
+          name="zipCode"
+          control={control}
+          render={({ field }) => <Input {...field} />}
+        />
+        {errors.zipCode && (
+          <p className="text-red-500 text-sm mt-1">{errors.zipCode.message}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="country">{t('country')}</Label>
+        <Controller
+          name="country"
           control={control}
           render={({ field }) => (
-            <div className="space-y-2">
-              <Label htmlFor="companyAddress">{t('companyAddress')}</Label>
-              <Input id="companyAddress" {...field} />
-              {errors.companyAddress && (
-                <p className="text-red-500 text-sm">
-                  {errors.companyAddress.message}
-                </p>
-              )}
-            </div>
+            <SearchableSelect
+              options={countries}
+              value={field.value}
+              onValueChange={field.onChange}
+              placeholder={t('selectCountry')}
+              emptyMessage={t('noCountriesFound')}
+            />
           )}
         />
-        <Controller
-          name="cityStateCountryZip"
-          control={control}
-          render={({ field }) => (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Label htmlFor="cityStateCountryZip">
-                {t('cityStateCountryZip')}
-              </Label>
-              <Input id="cityStateCountryZip" {...field} />
-              {errors.cityStateCountryZip && (
-                <p className="text-red-500 text-sm">
-                  {errors.cityStateCountryZip.message}
-                </p>
-              )}
-            </div>
-          )}
-        />
+        {errors.country && (
+          <p className="text-red-500 text-sm mt-1">{errors.country.message}</p>
+        )}
+      </div>
+
         <Controller
           name="ein"
           control={control}
@@ -402,94 +442,22 @@ export function IncomeReportingForm() {
           name="accountingMethod"
           control={control}
           render={({ field }) => (
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('selectAccountingMethod')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cashMethod">{t('cashMethod')}</SelectItem>
-                <SelectItem value="accrualMethod">{t('accrualMethod')}</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('selectAccountingMethod')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cashMethod">{t('cashMethod')}</SelectItem>
+                  <SelectItem value="accrualMethod">{t('accrualMethod')}</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.accountingMethod && (
+                <p className="text-red-500 text-sm mt-1">{errors.accountingMethod.message}</p>
+              )}
+            </div>
           )}
         />
-      </div>
-
-      <div>
-        <Label htmlFor="address">{t('address')}</Label>
-        <Controller
-          name="address"
-          control={control}
-          render={({ field }) => <Input {...field} />}
-        />
-        {errors.address && (
-          <p className="text-red-500 text-sm mt-1">{errors.address.message}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="city">{t('city')}</Label>
-          <Controller
-            name="city"
-            control={control}
-            render={({ field }) => <Input {...field} />}
-          />
-          {errors.city && (
-            <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>
-          )}
-        </div>
-        <div>
-          <Label htmlFor="state">{t('state')}</Label>
-          <Controller
-            name="state"
-            control={control}
-            render={({ field }) => (
-              <SearchableSelect
-                options={states}
-                value={field.value}
-                onValueChange={field.onChange}
-                placeholder={t('selectState')}
-                emptyMessage={t('noStatesFound')}
-              />
-            )}
-          />
-          {errors.state && (
-            <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="zipCode">{t('zipCode')}</Label>
-        <Controller
-          name="zipCode"
-          control={control}
-          render={({ field }) => <Input {...field} />}
-        />
-        {errors.zipCode && (
-          <p className="text-red-500 text-sm mt-1">{errors.zipCode.message}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="country">{t('country')}</Label>
-        <Controller
-          name="country"
-          control={control}
-          render={({ field }) => (
-            <SearchableSelect
-              options={countries}
-              value={field.value}
-              onValueChange={field.onChange}
-              placeholder={t('selectCountry')}
-              emptyMessage={t('noCountriesFound')}
-            />
-          )}
-        />
-        {errors.country && (
-          <p className="text-red-500 text-sm mt-1">{errors.country.message}</p>
-        )}
       </div>
 
       <div>
@@ -519,16 +487,27 @@ export function IncomeReportingForm() {
         )}
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {t('submitting')}
-          </>
-        ) : (
-          t('submitForm')
-        )}
-      </Button>
+      <div className="space-y-4">
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t('submitting')}
+            </>
+          ) : (
+            t('submitForm')
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleCancel}
+          disabled={isSubmitting}
+        >
+          {t('cancel')}
+        </Button>
+      </div>
     </form>
   );
 }

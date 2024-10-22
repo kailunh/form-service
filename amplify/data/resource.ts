@@ -3,8 +3,6 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 export const schema = a.schema({
   IncomeReport: a.model({
       companyName: a.string().required(),
-      companyAddress: a.string().required(),
-      cityStateCountryZip: a.string().required(),
       ein: a.string().required(),
       dateIncorporated: a.string().required(),
       isInitialReturn: a.boolean().required(),

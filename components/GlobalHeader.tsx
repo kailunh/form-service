@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from '@/lib/translations';
 import { signOut } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from "lucide-react";
+import Link from 'next/link';
 
 export function GlobalHeader() {
   const { t } = useTranslation();
@@ -22,23 +22,24 @@ export function GlobalHeader() {
     }
   };
 
-  const handleBack = () => {
-    router.back();
-  };
-
   return (
-<header className="bg-background shadow-sm">
-<div className="container py-4 flex flex-col sm:flex-row justify-between items-center">
-<Button onClick={handleBack} variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">{t('back')}</span>
+    <header className="bg-background shadow-sm">
+      <div className="container py-4 flex flex-col sm:flex-row justify-between items-center">
+        <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+          <Link href="/" className="flex items-center">
+            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Tax Go
+            </h1>
+          </Link>
+        </div>
+        <div className="flex space-x-2 sm:space-x-4 items-center">
+          <ThemeToggle />
+          <LanguageSwitcher />
+          <Button onClick={handleSignOut} size="sm" className="text-xs sm:text-sm">
+            {t('signOut')}
           </Button>
-  <div className="flex space-x-4">
-    <ThemeToggle />
-    <LanguageSwitcher />
-    <Button onClick={handleSignOut}>{t('signOut')}</Button>
-  </div>
-</div>
-</header>
+        </div>
+      </div>
+    </header>
   );
 }

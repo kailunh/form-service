@@ -1,19 +1,39 @@
 "use client";
 
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { GlobalHeader } from "@/components/GlobalHeader";
-import { useParams, useRouter } from 'next/navigation';
-import { IncomeReportingForm } from "@/components/IncomeReportingForm";
-import { Button } from "@/components/ui/button";
 import { useTranslation } from '@/lib/translations';
-import { ArrowLeft } from "lucide-react";
+import { Loader2 } from 'lucide-react';
+
+const DynamicIncomeReportingForm = dynamic(
+  () => import('@/components/IncomeReportingForm').then((mod) => mod.IncomeReportingForm),
+  {
+    loading: () => <Loader2 className="animate-spin h-8 w-8" />,
+    ssr: false
+  }
+);
 
 export default function NewFormPage() {
+  const { t } = useTranslation();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(false);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <GlobalHeader />
       <main className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6">Create New Form</h1>
-        <IncomeReportingForm />
+        <h1 className="text-2xl font-bold mb-6">{t('createNewForm')}</h1>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="animate-spin h-8 w-8" />
+          </div>
+        ) : (
+          <DynamicIncomeReportingForm />
+        )}
       </main>
     </div>
   );

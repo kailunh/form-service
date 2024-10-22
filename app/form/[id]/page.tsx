@@ -5,12 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/api';
+import { getCurrentUser } from 'aws-amplify/auth';
 import { type Schema } from '@/amplify/data/resource';
 import { useTranslation } from '@/lib/translations';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import outputs from "@/amplify_outputs.json";
+import { toast } from "@/components/ui/use-toast";
 
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
@@ -20,29 +22,53 @@ export default function FormPage() {
   const router = useRouter();
   const params = useParams();
   const [formData, setFormData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchFormData = async () => {
       if (params.id) {
         try {
+          // Get the current authenticated user
+          const user = await getCurrentUser();
+          
+          // Fetch the form data
           const { data } = await client.models.IncomeReport.get({ id: params.id });
+          
+          // Check if the form belongs to the current user
+          if (data.owner !== user.userId) {
+            throw new Error('Unauthorized access');
+          }
+          
           setFormData(data);
         } catch (error) {
           console.error('Error fetching form data:', error);
-          // Handle error (e.g., show error message to user)
+          toast({
+            title: t('errorFetchingForm'),
+            description: error.message === 'Unauthorized access' 
+              ? t('unauthorizedAccess') 
+              : t('errorFetchingFormDescription'),
+            variant: 'destructive',
+          });
+          router.push('/');
+        } finally {
+          setIsLoading(false);
         }
       }
     };
 
     fetchFormData();
-  }, [params.id]);
+  }, [params.id, router, t]);
 
   const handleBack = () => {
     router.push('/');
   };
 
-  if (!formData) {
+  if (isLoading) {
     return <div>Loading...</div>;
+  }
+
+  if (!formData) {
+    return null;
   }
 
   return (
@@ -58,8 +84,6 @@ export default function FormPage() {
           <div>
             <h2 className="text-xl font-semibold">{t('companyInformation')}</h2>
             <p><strong>{t('companyName')}:</strong> {formData.companyName}</p>
-            <p><strong>{t('companyAddress')}:</strong> {formData.companyAddress}</p>
-            <p><strong>{t('cityStateCountryZip')}:</strong> {formData.cityStateCountryZip}</p>
             <p><strong>{t('ein')}:</strong> {formData.ein}</p>
             <p><strong>{t('dateIncorporated')}:</strong> {formData.dateIncorporated}</p>
           </div>

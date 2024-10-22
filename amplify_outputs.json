@@ -27,10 +27,8 @@
   "data": {
     "url": "https://kkoadlprave2zfsxmlolp3444m.appsync-api.us-east-1.amazonaws.com/graphql",
     "aws_region": "us-east-1",
-    "api_key": "da2-hw6jbhljabbmvjlkhlde5vc53y",
-    "default_authorization_type": "API_KEY",
+    "default_authorization_type": "AMAZON_COGNITO_USER_POOLS",
     "authorization_types": [
-      "AMAZON_COGNITO_USER_POOLS",
       "AWS_IAM"
     ],
     "model_introspection": {
@@ -48,20 +46,6 @@
             },
             "companyName": {
               "name": "companyName",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true,
-              "attributes": []
-            },
-            "companyAddress": {
-              "name": "companyAddress",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true,
-              "attributes": []
-            },
-            "cityStateCountryZip": {
-              "name": "cityStateCountryZip",
               "isArray": false,
               "type": "String",
               "isRequired": true,
@@ -192,14 +176,15 @@
               "properties": {
                 "rules": [
                   {
-                    "allow": "public",
-                    "provider": "apiKey",
+                    "provider": "userPools",
+                    "ownerField": "owner",
+                    "allow": "owner",
                     "operations": [
                       "create",
-                      "update",
-                      "delete",
-                      "read"
-                    ]
+                      "read",
+                      "update"
+                    ],
+                    "identityClaim": "cognito:username"
                   }
                 ]
               }
