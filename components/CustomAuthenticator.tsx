@@ -396,9 +396,9 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
   };
 
   return (
-    <div className="w-full mx-auto mt-8">
-      {authState !== "authenticated" && (
-        <div className="w-full max-w-md mx-auto p-6 bg-background text-foreground rounded-lg shadow-md">
+<div className="w-full mx-auto mt-4 sm:mt-8">
+  {authState !== "authenticated" && (
+    <div className="w-full max-w-md mx-auto p-4 sm:p-6 bg-background text-foreground rounded-lg shadow-md">
           <div className="flex justify-end space-x-2 mb-4">
             <ThemeToggle />
             <LanguageSwitcher />

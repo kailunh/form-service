@@ -27,21 +27,18 @@ export function GlobalHeader() {
   };
 
   return (
-    <header className="bg-background border-b">
-      <div className="container mx-auto px-4 py-2 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <Button onClick={handleBack} variant="ghost" size="icon">
+<header className="bg-background shadow-sm">
+<div className="container py-4 flex flex-col sm:flex-row justify-between items-center">
+<Button onClick={handleBack} variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">{t('back')}</span>
           </Button>
-          <h1 className="text-xl font-bold">Income Reporting System</h1>
-        </div>
-        <div className="flex items-center space-x-4">
-          <ThemeToggle />
-          <LanguageSwitcher />
-          <Button onClick={handleSignOut}>{t('signOut')}</Button>
-        </div>
-      </div>
-    </header>
+  <div className="flex space-x-4">
+    <ThemeToggle />
+    <LanguageSwitcher />
+    <Button onClick={handleSignOut}>{t('signOut')}</Button>
+  </div>
+</div>
+</header>
   );
 }
