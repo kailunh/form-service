@@ -53,7 +53,10 @@ export default function FormPage(): JSX.Element {
   useEffect(() => {
     const fetchFormData = async () => {
       const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
-      if (!id) return;
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const { data } = await client.models.IncomeReport.get({ id });
@@ -62,11 +65,12 @@ export default function FormPage(): JSX.Element {
         console.error("Error fetching form data:", error);
         toast({
           title: t("errorFetchingForm"),
-          description: error instanceof Error
-            ? (error.message === "Unauthorized access"
-              ? t("unauthorizedAccess")
-              : t("errorFetchingFormDescription"))
-            : t("errorFetchingFormDescription"),
+          description:
+            error instanceof Error
+              ? error.message === "Unauthorized access"
+                ? t("unauthorizedAccess")
+                : t("errorFetchingFormDescription")
+              : t("errorFetchingFormDescription"),
           variant: "destructive",
         });
         void router.push("/");
@@ -76,10 +80,10 @@ export default function FormPage(): JSX.Element {
     };
 
     void fetchFormData();
-  }, [params?.id, router, t, toast, client.models.IncomeReport]);
+  }, [params?.id, router, t, client.models.IncomeReport]);
 
   const handleBack = () => {
-    router.push("/");
+    void router.push("/");
   };
 
   if (isLoading) {
@@ -87,7 +91,7 @@ export default function FormPage(): JSX.Element {
   }
 
   if (!formData) {
-    return null;
+    return <div>No form data available.</div>;
   }
 
   let shareholders: Shareholder[] = [];
