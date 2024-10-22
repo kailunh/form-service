@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/api';
-import { getCurrentUser } from 'aws-amplify/auth';
 import { type Schema } from '@/amplify/data/resource';
 import { useTranslation } from '@/lib/translations';
 import { Button } from "@/components/ui/button";
@@ -17,8 +16,25 @@ import { toast } from "@/components/ui/use-toast";
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
 
-// Define the type for the form data
-type FormData = Schema['IncomeReport'] | null;
+// Define a more specific type for the form data
+type FormData = {
+  companyName: string;
+  ein: string;
+  dateIncorporated: string;
+  isInitialReturn: boolean;
+  isFinalReturn: boolean;
+  hasNameChanged: boolean;
+  hasAddressChanged: boolean;
+  shareholders: string;
+  accountingMethod: string;
+  naicsCode: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  owner: string | null;
+} | null;
 
 export default function FormPage() {
   const { t } = useTranslation();
@@ -32,9 +48,8 @@ export default function FormPage() {
       const id = Array.isArray(params.id) ? params.id[0] : params.id;
       if (id) {
         try {
-          // Fetch the form data
-          const { data } = await client.models.IncomeReport.get({ id });    
-          setFormData(data);
+          const { data } = await client.models.IncomeReport.get({ id });
+          setFormData(data as FormData);
         } catch (error) {
           console.error('Error fetching form data:', error);
           toast({
@@ -93,7 +108,7 @@ export default function FormPage() {
           <Separator />
           <div>
             <h2 className="text-xl font-semibold">{t('shareholders')}</h2>
-            {JSON.parse(formData.shareholders).map((shareholder, index) => (
+            {JSON.parse(formData.shareholders).map((shareholder: any, index: number) => (
               <div key={index} className="mb-2">
                 <p><strong>{t('shareholderName')}:</strong> {shareholder.name}</p>
                 <p><strong>{t('shareholderTitle')}:</strong> {shareholder.title}</p>
