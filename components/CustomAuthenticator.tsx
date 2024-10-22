@@ -48,7 +48,7 @@ const resetPasswordSchema = z.object({
   path: ["confirmNewPassword"],
 });
 
-export function CustomAuthenticator({ children, onAuthStateChange }) {
+export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthenticatorProps): JSX.Element {
   const [authState, setAuthState] = useState("signIn");
   const [previousAuthState, setPreviousAuthState] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +69,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
   });
 
   useEffect(() => {
-    checkUser();
+    void checkUser();
   }, []);
 
   const checkUser = async () => {
@@ -120,7 +120,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
     }
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     setError("");
     try {
@@ -134,7 +134,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
               await checkUser();
             }
           } catch (err) {
-            if (err.name === "UserNotConfirmedException") {
+            if (err instanceof Error && err.name === "UserNotConfirmedException") {
               changeAuthState("confirmSignUp", data.email);
             } else {
               toast({
@@ -200,14 +200,11 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
           }
           break;
       }
-    } catch (err) {
-      toast({
-        title: t('generalError'),
-        description: t('generalErrorDescription'),
-        variant: "destructive",
-      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const renderForm = () => {

@@ -13,14 +13,14 @@ import { Dashboard } from "@/components/Dashboard";
 
 Amplify.configure(outputs);
 
-export default function App() {
+export default function App(): JSX.Element {
   const [authState, setAuthState] = useState("signIn");
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const { t } = useTranslation();
 
   useEffect(() => {
-    checkUser();
+    void checkUser();
   }, []);
 
   const checkUser = async () => {

@@ -43,7 +43,7 @@ type FormData = {
   owner: string | null;
 } | null;
 
-export default function FormPage() {
+export default function FormPage(): JSX.Element {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useParams();
@@ -53,31 +53,30 @@ export default function FormPage() {
   useEffect(() => {
     const fetchFormData = async () => {
       const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
-      if (id) {
-        try {
-          const { data } = await client.models.IncomeReport.get({ id });
-          setFormData(data as FormData);
-        } catch (error) {
-          console.error("Error fetching form data:", error);
-          toast({
-            title: t("errorFetchingForm"),
-            description:
-              error instanceof Error
-                ? error.message === "Unauthorized access"
-                  ? t("unauthorizedAccess")
-                  : t("errorFetchingFormDescription")
-                : t("errorFetchingFormDescription"),
-            variant: "destructive",
-          });
-          router.push("/");
-        } finally {
-          setIsLoading(false);
-        }
+      if (!id) return;
+
+      try {
+        const { data } = await client.models.IncomeReport.get({ id });
+        setFormData(data as FormData);
+      } catch (error) {
+        console.error("Error fetching form data:", error);
+        toast({
+          title: t("errorFetchingForm"),
+          description: error instanceof Error
+            ? (error.message === "Unauthorized access"
+              ? t("unauthorizedAccess")
+              : t("errorFetchingFormDescription"))
+            : t("errorFetchingFormDescription"),
+          variant: "destructive",
+        });
+        void router.push("/");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchFormData();
-  }, [params?.id, router, t]);
+    void fetchFormData();
+  }, [params?.id, router, t, toast, client.models.IncomeReport]);
 
   const handleBack = () => {
     router.push("/");

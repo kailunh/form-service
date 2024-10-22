@@ -9,14 +9,14 @@ import { type Schema } from '@/amplify/data/resource';
 
 const client = generateClient<Schema>();
 
-export function Dashboard() {
+export function Dashboard(): JSX.Element {
   const { t } = useTranslation();
   const router = useRouter();
 
   const [forms, setForms] = React.useState([]);
 
   React.useEffect(() => {
-    fetchForms();
+    void fetchForms();
   }, []);
 
   const fetchForms = async () => {

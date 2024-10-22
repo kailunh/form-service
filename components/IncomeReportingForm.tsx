@@ -65,7 +65,7 @@ const formSchema = z.object({
   country: z.string().min(1, { message: 'Country is required' }),
 });
 
-export function IncomeReportingForm() {
+export function IncomeReportingForm(): JSX.Element {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -103,32 +103,31 @@ export function IncomeReportingForm() {
     name: 'shareholders',
   });
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
       if (!client.models.IncomeReport) {
         throw new Error('IncomeReport model not found');
       }
-            
-      const res = await client.models.IncomeReport.create({
+      
+      await client.models.IncomeReport.create({
         ...data,
         shareholders: JSON.stringify(data.shareholders)
       },
       {
         authMode: 'userPool',
-      }
-    );
+      });
 
       toast({
         title: t('formSubmitted'),
         description: t('formSubmittedDescription'),
       });
-      router.push('/');
+      void router.push('/');
     } catch (error) {
       console.error('Error submitting form:', error);
       toast({
         title: t('formSubmissionError'),
-        description: error.message || t('formSubmissionErrorDescription'),
+        description: error instanceof Error ? error.message : t('formSubmissionErrorDescription'),
         variant: 'destructive',
       });
     } finally {
