@@ -1,102 +1,135 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
-import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import { useTranslation } from '@/lib/translations';
-import { toast } from "@/components/ui/use-toast";
+import { toast } from '@/components/ui/use-toast';
 import { generateClient } from 'aws-amplify/api';
 import { type Schema } from '@/amplify/data/resource';
-import { Loader2 } from "lucide-react";
-import { SearchableSelect } from "@/components/ui/searchable-select"
-import { countries } from '@/lib/countries'
-import { naicsCodes } from '@/lib/naicsCodes'
-import { states } from '@/lib/states'
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { countries } from '@/lib/countries';
+import { naicsCodes } from '@/lib/naicsCodes';
+import { states } from '@/lib/states';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { useRouter } from 'next/navigation';
+
+const client = generateClient<Schema>();
 
 const formSchema = z.object({
-  companyName: z.string().min(1, { message: "Company name is required" }),
-  companyAddress: z.string().min(1, { message: "Company address is required" }),
-  cityStateCountryZip: z.string().min(1, { message: "City, state, country, and ZIP are required" }),
-  ein: z.string().min(1, { message: "EIN is required" }),
-  dateIncorporated: z.string().min(1, { message: "Date incorporated is required" }),
+  companyName: z.string().min(1, { message: 'Company name is required' }),
+  companyAddress: z.string().min(1, { message: 'Company address is required' }),
+  cityStateCountryZip: z
+    .string()
+    .min(1, { message: 'City, state, country, and ZIP are required' }),
+  ein: z.string().min(1, { message: 'EIN is required' }),
+  dateIncorporated: z
+    .string()
+    .min(1, { message: 'Date incorporated is required' }),
   isInitialReturn: z.boolean(),
   isFinalReturn: z.boolean(),
   hasNameChanged: z.boolean(),
   hasAddressChanged: z.boolean(),
-  shareholders: z.array(z.object({
-    name: z.string().min(1, { message: "Shareholder name is required" }),
-    title: z.string().min(1, { message: "Shareholder title is required" }),
-    sharePercentage: z.string().min(1, { message: "Share percentage is required" }),
-    nationality: z.string().min(1, { message: "Shareholder nationality is required" }),
-  })),
-  accountingMethod: z.enum(["cash", "accrual"]),
-  naicsCode: z.string().min(1, { message: "NAICS code is required" }),
-  address: z.string().min(1, { message: "Address is required" }),
-  city: z.string().min(1, { message: "City is required" }),
-  state: z.string().min(1, { message: "State is required" }),
-  zipCode: z.string().min(5, { message: "ZIP code must be at least 5 characters" }),
-  country: z.string().min(1, { message: "Country is required" }),
+  shareholders: z.array(
+    z.object({
+      name: z.string().min(1, { message: 'Shareholder name is required' }),
+      title: z.string().min(1, { message: 'Shareholder title is required' }),
+      sharePercentage: z
+        .string()
+        .min(1, { message: 'Share percentage is required' }),
+      nationality: z.string().min(1, { message: 'Nationality is required' }),
+    })
+  ),
+  accountingMethod: z
+    .string()
+    .min(1, { message: 'Accounting method is required' }),
+  naicsCode: z.string().min(1, { message: 'NAICS code is required' }),
+  address: z.string().min(1, { message: 'Address is required' }),
+  city: z.string().min(1, { message: 'City is required' }),
+  state: z.string().min(1, { message: 'State is required' }),
+  zipCode: z.string().min(1, { message: 'ZIP code is required' }),
+  country: z.string().min(1, { message: 'Country is required' }),
 });
-
-const client = generateClient<Schema>();
 
 export function IncomeReportingForm() {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      companyName: "",
-      companyAddress: "",
-      city: '',
-      state: '',
-      zipCode: '',
-      country: '',
-      cityStateCountryZip: "",
-      ein: "",
-      dateIncorporated: "",
+      companyName: '',
+      companyAddress: '',
+      cityStateCountryZip: '',
+      ein: '',
+      dateIncorporated: '',
       isInitialReturn: false,
       isFinalReturn: false,
       hasNameChanged: false,
       hasAddressChanged: false,
-      shareholders: [{ name: "", title: "", sharePercentage: "", nationality: "" }],
-      accountingMethod: "cash",
+      shareholders: [
+        { name: '', title: '', sharePercentage: '', nationality: '' },
+      ],
+      accountingMethod: '',
       naicsCode: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: '',
     },
   });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "shareholders",
+    name: 'shareholders',
   });
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      console.log(client.models)
-      await client.models.IncomeReport.create(data);
+      await client.models.IncomeReport.create({
+        ...data,
+        shareholders: JSON.stringify(data.shareholders),
+      });
       toast({
         title: t('formSubmitted'),
         description: t('formSubmittedDescription'),
       });
+      router.push('/');
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error('Error submitting form:', error);
       toast({
         title: t('formSubmissionError'),
         description: t('formSubmissionErrorDescription'),
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
     setIsSubmitting(false);
+  };
+
+  const handleBack = () => {
+    router.push('/');
   };
 
   return (
@@ -110,7 +143,11 @@ export function IncomeReportingForm() {
             <div className="space-y-2">
               <Label htmlFor="companyName">{t('companyName')}</Label>
               <Input id="companyName" {...field} />
-              {errors.companyName && <p className="text-red-500 text-sm">{errors.companyName.message}</p>}
+              {errors.companyName && (
+                <p className="text-red-500 text-sm">
+                  {errors.companyName.message}
+                </p>
+              )}
             </div>
           )}
         />
@@ -121,7 +158,11 @@ export function IncomeReportingForm() {
             <div className="space-y-2">
               <Label htmlFor="companyAddress">{t('companyAddress')}</Label>
               <Input id="companyAddress" {...field} />
-              {errors.companyAddress && <p className="text-red-500 text-sm">{errors.companyAddress.message}</p>}
+              {errors.companyAddress && (
+                <p className="text-red-500 text-sm">
+                  {errors.companyAddress.message}
+                </p>
+              )}
             </div>
           )}
         />
@@ -130,9 +171,15 @@ export function IncomeReportingForm() {
           control={control}
           render={({ field }) => (
             <div className="space-y-2">
-              <Label htmlFor="cityStateCountryZip">{t('cityStateCountryZip')}</Label>
+              <Label htmlFor="cityStateCountryZip">
+                {t('cityStateCountryZip')}
+              </Label>
               <Input id="cityStateCountryZip" {...field} />
-              {errors.cityStateCountryZip && <p className="text-red-500 text-sm">{errors.cityStateCountryZip.message}</p>}
+              {errors.cityStateCountryZip && (
+                <p className="text-red-500 text-sm">
+                  {errors.cityStateCountryZip.message}
+                </p>
+              )}
             </div>
           )}
         />
@@ -143,7 +190,9 @@ export function IncomeReportingForm() {
             <div className="space-y-2">
               <Label htmlFor="ein">{t('ein')}</Label>
               <Input id="ein" {...field} />
-              {errors.ein && <p className="text-red-500 text-sm">{errors.ein.message}</p>}
+              {errors.ein && (
+                <p className="text-red-500 text-sm">{errors.ein.message}</p>
+              )}
             </div>
           )}
         />
@@ -154,7 +203,11 @@ export function IncomeReportingForm() {
             <div className="space-y-2">
               <Label htmlFor="dateIncorporated">{t('dateIncorporated')}</Label>
               <Input id="dateIncorporated" type="date" {...field} />
-              {errors.dateIncorporated && <p className="text-red-500 text-sm">{errors.dateIncorporated.message}</p>}
+              {errors.dateIncorporated && (
+                <p className="text-red-500 text-sm">
+                  {errors.dateIncorporated.message}
+                </p>
+              )}
             </div>
           )}
         />
@@ -213,7 +266,9 @@ export function IncomeReportingForm() {
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
-              <Label htmlFor="hasAddressChanged">{t('hasAddressChanged')}</Label>
+              <Label htmlFor="hasAddressChanged">
+                {t('hasAddressChanged')}
+              </Label>
             </div>
           )}
         />
@@ -228,9 +283,15 @@ export function IncomeReportingForm() {
               control={control}
               render={({ field }) => (
                 <div className="space-y-2">
-                  <Label htmlFor={`shareholderName${index}`}>{t('shareholderName')}</Label>
+                  <Label htmlFor={`shareholderName${index}`}>
+                    {t('shareholderName')}
+                  </Label>
                   <Input id={`shareholderName${index}`} {...field} />
-                  {errors.shareholders?.[index]?.name && <p className="text-red-500 text-sm">{errors.shareholders[index].name.message}</p>}
+                  {errors.shareholders?.[index]?.name && (
+                    <p className="text-red-500 text-sm">
+                      {errors.shareholders[index].name.message}
+                    </p>
+                  )}
                 </div>
               )}
             />
@@ -239,9 +300,15 @@ export function IncomeReportingForm() {
               control={control}
               render={({ field }) => (
                 <div className="space-y-2">
-                  <Label htmlFor={`shareholderTitle${index}`}>{t('shareholderTitle')}</Label>
+                  <Label htmlFor={`shareholderTitle${index}`}>
+                    {t('shareholderTitle')}
+                  </Label>
                   <Input id={`shareholderTitle${index}`} {...field} />
-                  {errors.shareholders?.[index]?.title && <p className="text-red-500 text-sm">{errors.shareholders[index].title.message}</p>}
+                  {errors.shareholders?.[index]?.title && (
+                    <p className="text-red-500 text-sm">
+                      {errors.shareholders[index].title.message}
+                    </p>
+                  )}
                 </div>
               )}
             />
@@ -250,9 +317,15 @@ export function IncomeReportingForm() {
               control={control}
               render={({ field }) => (
                 <div className="space-y-2">
-                  <Label htmlFor={`sharePercentage${index}`}>{t('sharePercentage')}</Label>
+                  <Label htmlFor={`sharePercentage${index}`}>
+                    {t('sharePercentage')}
+                  </Label>
                   <Input id={`sharePercentage${index}`} {...field} />
-                  {errors.shareholders?.[index]?.sharePercentage && <p className="text-red-500 text-sm">{errors.shareholders[index].sharePercentage.message}</p>}
+                  {errors.shareholders?.[index]?.sharePercentage && (
+                    <p className="text-red-500 text-sm">
+                      {errors.shareholders[index].sharePercentage.message}
+                    </p>
+                  )}
                 </div>
               )}
             />
@@ -261,7 +334,9 @@ export function IncomeReportingForm() {
               control={control}
               render={({ field }) => (
                 <div>
-                  <Label htmlFor={`shareholders.${index}.nationality`}>{t('nationality')}</Label>
+                  <Label htmlFor={`shareholders.${index}.nationality`}>
+                    {t('nationality')}
+                  </Label>
                   <SearchableSelect
                     options={countries}
                     value={field.value}
@@ -270,19 +345,35 @@ export function IncomeReportingForm() {
                     emptyMessage={t('noCountriesFound')}
                   />
                   {errors.shareholders?.[index]?.nationality && (
-                    <p className="text-red-500 text-sm mt-1">{errors.shareholders[index].nationality.message}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.shareholders[index].nationality.message}
+                    </p>
                   )}
                 </div>
               )}
             />
             {index > 0 && (
-              <Button type="button" variant="destructive" onClick={() => remove(index)}>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => remove(index)}
+              >
                 {t('removeShareholder')}
               </Button>
             )}
           </div>
         ))}
-        <Button type="button" onClick={() => append({ name: "", title: "", sharePercentage: "", nationality: "" })}>
+        <Button
+          type="button"
+          onClick={() =>
+            append({
+              name: '',
+              title: '',
+              sharePercentage: '',
+              nationality: '',
+            })
+          }
+        >
           {t('addShareholder')}
         </Button>
       </div>
@@ -394,7 +485,7 @@ export function IncomeReportingForm() {
                 options={naicsCodes}
                 value={field.value}
                 onValueChange={(value) => {
-                  console.log("NAICS code changed:", value);
+                  console.log('NAICS code changed:', value);
                   field.onChange(value);
                 }}
                 placeholder={t('selectNaicsCode')}
@@ -404,7 +495,9 @@ export function IncomeReportingForm() {
           )}
         />
         {errors.naicsCode && (
-          <p className="text-red-500 text-sm mt-1">{errors.naicsCode.message}</p>
+          <p className="text-red-500 text-sm mt-1">
+            {errors.naicsCode.message}
+          </p>
         )}
       </div>
 

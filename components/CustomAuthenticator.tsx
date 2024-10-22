@@ -12,8 +12,9 @@ import { useTranslation } from '@/lib/translations';
 import { Loader2 } from "lucide-react";
 import { signIn, signUp, resendSignUpCode, confirmSignUp, resetPassword, confirmResetPassword, getCurrentUser } from 'aws-amplify/auth';
 import { useToast } from "@/components/ui/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
-// Define the schemas
 const signInSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -48,16 +49,15 @@ const resetPasswordSchema = z.object({
 });
 
 export function CustomAuthenticator({ children, onAuthStateChange }) {
-  const { t } = useTranslation();
-  const { toast } = useToast();
   const [authState, setAuthState] = useState("signIn");
   const [previousAuthState, setPreviousAuthState] = useState(null);
-  const [error, setError] = useState("");
-  const [user, setUser] = useState(null);
-  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const { t } = useTranslation();
+  const { toast } = useToast();
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm({
     resolver: zodResolver(
       authState === "signIn" ? signInSchema :
       authState === "signUp" ? signUpSchema :
@@ -75,12 +75,28 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
   const checkUser = async () => {
     try {
       const userData = await getCurrentUser();
-      setUser(userData);
       setAuthState("authenticated");
       onAuthStateChange("authenticated", false, userData);
     } catch (err) {
-      setUser(null);
       setAuthState("signIn");
+    }
+  };
+
+  const changeAuthState = (newState, email = "") => {
+    setPreviousAuthState(authState);
+    setAuthState(newState);
+    if (email) {
+      setEmail(email);
+      if (newState === "confirmSignUp") {
+        sendConfirmationCode(email);
+      }
+    }
+  };
+
+  const goBack = () => {
+    if (previousAuthState) {
+      setAuthState(previousAuthState);
+      setPreviousAuthState(null);
     }
   };
 
@@ -101,24 +117,6 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const changeAuthState = (newState, email = "") => {
-    setPreviousAuthState(authState);
-    setAuthState(newState);
-    if (email) {
-      setEmail(email);
-      if (newState === "confirmSignUp") {
-        sendConfirmationCode(email);
-      }
-    }
-  };
-
-  const goBack = () => {
-    if (previousAuthState) {
-      setAuthState(previousAuthState);
-      setPreviousAuthState(null);
     }
   };
 
@@ -162,8 +160,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
           break;
         case "confirmSignUp":
           try {
-            const res = await confirmSignUp({ username: email, confirmationCode: data.code });
-            console.log("Confirm sign-up", res);
+            await confirmSignUp({ username: email, confirmationCode: data.code });
             changeAuthState("signIn");
           } catch (err) {
             toast({
@@ -402,6 +399,10 @@ export function CustomAuthenticator({ children, onAuthStateChange }) {
     <div className="w-full mx-auto mt-8">
       {authState !== "authenticated" && (
         <div className="w-full max-w-md mx-auto p-6 bg-background text-foreground rounded-lg shadow-md">
+          <div className="flex justify-end space-x-2 mb-4">
+            <ThemeToggle />
+            <LanguageSwitcher />
+          </div>
           <h2 className="text-2xl font-bold mb-6 text-center">
             {authState === "signIn" ? t('signIn') :
              authState === "signUp" ? t('signUp') :
