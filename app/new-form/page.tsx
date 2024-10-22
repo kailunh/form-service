@@ -26,7 +26,6 @@ export default function NewFormPage() {
     <div className="min-h-screen bg-background">
       <GlobalHeader />
       <main className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6">{t('createNewForm')}</h1>
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="animate-spin h-8 w-8" />

@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/api';
-import { getCurrentUser } from 'aws-amplify/auth';
 import { type Schema } from '@/amplify/data/resource';
 import { useTranslation } from '@/lib/translations';
 import { Button } from "@/components/ui/button";
@@ -26,19 +25,11 @@ export default function FormPage() {
 
   useEffect(() => {
     const fetchFormData = async () => {
-      if (params.id) {
+      const id = Array.isArray(params.id) ? params.id[0] : params.id;
+      if (id) {
         try {
-          // Get the current authenticated user
-          const user = await getCurrentUser();
-          
           // Fetch the form data
-          const { data } = await client.models.IncomeReport.get({ id: params.id });
-          
-          // Check if the form belongs to the current user
-          if (data.owner !== user.userId) {
-            throw new Error('Unauthorized access');
-          }
-          
+          const { data } = await client.models.IncomeReport.get({ id });    
           setFormData(data);
         } catch (error) {
           console.error('Error fetching form data:', error);
