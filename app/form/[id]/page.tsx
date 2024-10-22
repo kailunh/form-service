@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/api';
+import { getCurrentUser } from 'aws-amplify/auth';
 import { type Schema } from '@/amplify/data/resource';
 import { useTranslation } from '@/lib/translations';
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,14 @@ import { toast } from "@/components/ui/use-toast";
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
 
+// Define the type for the form data
+type FormData = Schema['IncomeReport'] | null;
+
 export default function FormPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useParams();
-  const [formData, setFormData] = useState(null);
+  const [formData, setFormData] = useState<FormData>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
