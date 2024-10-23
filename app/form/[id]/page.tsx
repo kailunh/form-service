@@ -25,6 +25,7 @@ type Shareholder = {
 
 // Define a more specific type for the form data
 type FormData = {
+  formType: string;
   companyName: string;
   ein: string;
   dateIncorporated: string;
@@ -111,6 +112,15 @@ export default function FormPage(): JSX.Element {
         </Button>
         <h1 className="text-2xl font-bold mb-6">{t("formDetails")}</h1>
         <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">
+              {t("formInformation")}
+            </h2>
+            <p>
+              <strong>{t("formType")}:</strong> {formData.formType}
+            </p>
+          </div>
+          <Separator />
           <div>
             <h2 className="text-xl font-semibold">
               {t("companyInformation")}
