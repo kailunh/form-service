@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,20 @@ import Link from 'next/link';
 export function GlobalHeader() {
   const { t } = useTranslation();
   const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    setIsSigningOut(true);
     try {
       await signOut();
-      router.push('/');
+      // Clear any client-side auth state
+      localStorage.removeItem("user");
+      sessionStorage.clear();
+      // Use window.location for a full page reload
+      window.location.href = '/';
     } catch (error) {
       console.error("Error signing out: ", error);
+      setIsSigningOut(false);
     }
   };
 
@@ -35,8 +42,13 @@ export function GlobalHeader() {
         <div className="flex space-x-2 sm:space-x-4 items-center">
           <ThemeToggle />
           <LanguageSwitcher />
-          <Button onClick={handleSignOut} size="sm" className="text-xs sm:text-sm">
-            {t('signOut')}
+          <Button 
+            onClick={handleSignOut} 
+            size="sm" 
+            className="text-xs sm:text-sm"
+            disabled={isSigningOut}
+          >
+            {isSigningOut ? t('signingOut') : t('signOut')}
           </Button>
         </div>
       </div>

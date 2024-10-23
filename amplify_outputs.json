@@ -44,6 +44,13 @@
               "isRequired": true,
               "attributes": []
             },
+            "formType": {
+              "name": "formType",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
             "companyName": {
               "name": "companyName",
               "isArray": false,

@@ -35,6 +35,7 @@ Amplify.configure(outputs);
 const client = generateClient<Schema>();
 
 const formSchema = z.object({
+  formType: z.string(),  // Add this line
   companyName: z.string().min(1, { message: 'Company name is required' }),
   ein: z.string().min(1, { message: 'EIN is required' }),
   dateIncorporated: z
@@ -78,6 +79,7 @@ export function IncomeReportingForm(): JSX.Element {
   } = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: useMemo(() => ({
+      formType: 'businessIncome',  // Add this line
       companyName: '',
       ein: '',
       dateIncorporated: '',
@@ -110,7 +112,7 @@ export function IncomeReportingForm(): JSX.Element {
         throw new Error('IncomeReport model not found');
       }
       
-      await client.models.IncomeReport.create({
+       await client.models.IncomeReport.create({
         ...data,
         shareholders: JSON.stringify(data.shareholders)
       },

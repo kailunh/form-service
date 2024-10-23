@@ -47,6 +47,7 @@ const translations = {
     confirm: 'Confirm',
     welcome: 'Welcome',
     signOut: 'Sign Out',
+    signingOut: 'Signing Out...', // Add this line
     invalidCredentials: 'Invalid email or password',
     signUpError: 'Error occurred during sign up. Please try again.',
     confirmSignUpError: 'Error confirming sign up. Please try again.',
@@ -135,6 +136,7 @@ const translations = {
     confirm: '确认',
     welcome: '欢迎',
     signOut: '退出登录',
+    signingOut: '正在退出...', // Add this line
     invalidCredentials: '无效的电子邮件或密码',
     signUpError: '注册过程中出错。请重试。',
     confirmSignUpError: '确认注册时出错。请重试。',

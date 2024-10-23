@@ -31,10 +31,32 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
+  const [scrollTop, setScrollTop] = React.useState(0)
 
-  const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
+  const filteredOptions = React.useMemo(() => 
+    options.filter(option =>
+      option.label.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    ),
+    [options, debouncedSearchTerm]
   )
+
+  const itemHeight = 35 // Approximate height of each item in pixels
+  const windowHeight = 200 // Height of the scrollable area
+  const overscan = 5 // Number of items to render above and below the visible area
+
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
+  const endIndex = Math.min(
+    filteredOptions.length - 1,
+    Math.floor((scrollTop + windowHeight) / itemHeight) + overscan
+  )
+
+  const visibleOptions = filteredOptions.slice(startIndex, endIndex + 1)
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop)
+  }
 
   return (
     <Select
@@ -54,18 +76,50 @@ export function SearchableSelect({
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="max-h-[200px] overflow-y-auto">
+        <div 
+          className="max-h-[200px] overflow-y-auto"
+          onScroll={handleScroll}
+        >
           {filteredOptions.length === 0 ? (
             <div className="py-2 px-2 text-sm">{emptyMessage}</div>
           ) : (
-            filteredOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))
+            <div style={{ height: `${filteredOptions.length * itemHeight}px`, position: 'relative' }}>
+              {visibleOptions.map((option, index) => (
+                <SelectItem 
+                  key={option.value} 
+                  value={option.value}
+                  style={{
+                    position: 'absolute',
+                    top: `${(startIndex + index) * itemHeight}px`,
+                    left: 0,
+                    right: 0,
+                    height: `${itemHeight}px`,
+                  }}
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </div>
           )}
         </div>
       </SelectContent>
     </Select>
   )
+}
+
+// Add this custom hook at the end of the file
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value)
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
 }

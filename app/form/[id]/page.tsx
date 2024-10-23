@@ -81,7 +81,7 @@ export default function FormPage(): JSX.Element {
     };
 
     void fetchFormData();
-  }, [params?.id, router, t, client.models.IncomeReport]);
+  }, [params?.id]);
 
   const handleBack = () => {
     void router.push("/");
