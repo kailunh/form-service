@@ -124,7 +124,7 @@ export function IncomeReportingForm(): JSX.Element {
         throw new Error("IncomeReport model not found");
       }
 
-      await client.models.IncomeReport.create(
+      const response = await client.models.IncomeReport.create(
         {
           ...data,
           shareholders: JSON.stringify(data.shareholders),
@@ -133,7 +133,7 @@ export function IncomeReportingForm(): JSX.Element {
           authMode: "userPool",
         }
       );
-
+      console.log("Response:", response);
       toast({
         title: t("formSubmitted"),
         description: t("formSubmittedDescription"),
