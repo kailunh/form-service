@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -39,7 +39,6 @@ import { useRouter } from "next/navigation";
 import { Amplify } from "aws-amplify";
 import outputs from "@/amplify_outputs.json";
 import { getCurrentUser } from "aws-amplify/auth";
-import { DatePicker } from "@/components/ui/date-picker";
 
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
@@ -165,7 +164,7 @@ export function IncomeReportingForm(): JSX.Element {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <div className="space-y-4">
         <h2 className="text-2xl font-bold">{t("companyInformation")}</h2>
         <Controller
@@ -297,22 +296,21 @@ export function IncomeReportingForm(): JSX.Element {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {field.value ? (
-                      format(field.value, "PPP")
-                    ) : (
-                      <span>{t("pickADate")}</span>
-                    )}
+                    {field.value ? format(new Date(field.value), "MMMM d, yyyy") : <span>{t('pickADate')}</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent align="start" className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
+                    selected={field.value ? new Date(field.value) : undefined}
+                    onSelect={(date) => field.onChange(date?.toISOString())}
                     disabled={(date) =>
                       date > new Date() || date < new Date("1900-01-01")
                     }
                     initialFocus
+                    captionLayout="dropdown-buttons"
+                    fromYear={1900}
+                    toYear={new Date().getFullYear()}
                   />
                 </PopoverContent>
               </Popover>
