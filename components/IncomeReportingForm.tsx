@@ -296,14 +296,14 @@ export function IncomeReportingForm(): JSX.Element {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {field.value ? format(new Date(field.value), "MMMM d, yyyy") : <span>{t('pickADate')}</span>}
+                    {field.value ? format(field.value, "MMMM d, yyyy") : <span>{t('pickADate')}</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={field.value ? new Date(field.value) : undefined}
-                    onSelect={(date) => field.onChange(date?.toISOString())}
+                    selected={field.value}
+                    onSelect={field.onChange}
                     disabled={(date) =>
                       date > new Date() || date < new Date("1900-01-01")
                     }

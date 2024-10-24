@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, ReactNode } from "react";
+import React, { useState, useEffect, useCallback, ReactNode, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -46,7 +46,6 @@ const forgotPasswordSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  email: z.string().email(),
   code: z.string().length(6),
   newPassword: z.string().min(8),
   confirmNewPassword: z.string().min(8),
@@ -65,8 +64,11 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
   const [email, setEmail] = useState("");
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [passwordFieldId, setPasswordFieldId] = useState('');
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormSchema>({
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<FormSchema>({
     resolver: zodResolver(
       authState === "signIn" ? signInSchema :
       authState === "signUp" ? signUpSchema :
@@ -75,6 +77,9 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
       resetPasswordSchema
     ),
   });
+
+  // Watch all form fields
+  const watchedFields = watch();
 
   const checkUser = useCallback(async () => {
     try {
@@ -90,23 +95,10 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
     void checkUser();
   }, [checkUser]);
 
-  const changeAuthState = useCallback((newState: AuthState, email: string = "") => {
-    setPreviousAuthState(authState);
-    setAuthState(newState);
-    if (email) {
-      setEmail(email);
-      if (newState === "confirmSignUp") {
-        void sendConfirmationCode(email);
-      }
-    }
+  useEffect(() => {
+    // Generate a random ID for password fields on each render
+    setPasswordFieldId(`pwd-${Math.random().toString(36).substr(2, 9)}`);
   }, [authState]);
-
-  const goBack = () => {
-    if (previousAuthState) {
-      setAuthState(previousAuthState);
-      setPreviousAuthState(null);
-    }
-  };
 
   const sendConfirmationCode = useCallback(async (email: string) => {
     try {
@@ -127,6 +119,29 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
       setIsLoading(false);
     }
   }, [t, toast]);
+
+  const changeAuthState = useCallback((newState: AuthState, email: string = "") => {
+    setPreviousAuthState(authState);
+    setAuthState(newState);
+    reset(); // This will clear the form data in react-hook-form
+
+    if (email) {
+      setEmail(email);
+      if (newState === "confirmSignUp") {
+        void sendConfirmationCode(email);
+      }
+      if (["confirmSignUp", "resetPassword"].includes(newState)) {
+        setValue("user-email", email);
+      }
+    }
+  }, [authState, reset, setValue, sendConfirmationCode]);
+
+  const goBack = () => {
+    if (previousAuthState) {
+      setAuthState(previousAuthState);
+      setPreviousAuthState(null);
+    }
+  };
 
   const onSubmit = async (data: FormSchema) => {
     setIsLoading(true);
@@ -194,24 +209,20 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
           }
           break;
         case "resetPassword":
-          if ('newPassword' in data && 'code' in data) {
-            try {
-              await confirmResetPassword({
-                username: email,
-                newPassword: data.newPassword,
-                confirmationCode: data.code
-              });
-              changeAuthState("signIn");
-              toast({
-                title: t('passwordResetSuccess'),
-                description: t('passwordResetSuccessDescription'),
-              });
-            } catch (error) {
-              console.error("Reset password error:", error);
-              setError(error instanceof Error ? error.message : "An unknown error occurred during password reset");
-            }
-          } else {
-            setError("Invalid form data for password reset");
+          try {
+            await confirmResetPassword({
+              username: email,
+              newPassword: data.newPassword,
+              confirmationCode: data.code
+            });
+            changeAuthState("signIn");
+            toast({
+              title: t('passwordResetSuccess'),
+              description: t('passwordResetSuccessDescription'),
+            });
+          } catch (error) {
+            console.error("Reset password error:", error);
+            setError(error instanceof Error ? error.message : "An unknown error occurred during password reset");
           }
           break;
         default:
@@ -226,15 +237,15 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
   };
 
   const renderForm = () => {
-    let form;
+    let formContent;
     let showBackButton = true;
     let backButtonText = t('back');
 
     switch (authState) {
       case "signIn":
         showBackButton = false;
-        form = (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        formContent = (
+          <>
             <div className="space-y-2">
               <Label htmlFor="email">{t('email')}</Label>
               <Input
@@ -251,6 +262,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
                 id="password"
                 type="password"
                 {...register("password")}
+                autoComplete="new-password"
                 className={errors.password ? "border-red-500" : ""}
               />
               {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
@@ -262,13 +274,13 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
             <Button variant="link" onClick={() => changeAuthState("forgotPassword")}>{t('forgotPassword')}</Button>
             <Separator />
             <p>{t('dontHaveAccount')} <Button variant="link" onClick={() => changeAuthState("signUp")}>{t('signUp')}</Button></p>
-          </form>
+          </>
         );
         break;
       case "signUp":
         backButtonText = t('backToSignIn');
-        form = (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        formContent = (
+          <>
             <div className="space-y-2">
               <Label htmlFor="email">{t('email')}</Label>
               <Input
@@ -285,6 +297,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
                 id="password"
                 type="password"
                 {...register("password")}
+                autoComplete="new-password"
                 className={errors.password ? "border-red-500" : ""}
               />
               {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
@@ -305,19 +318,20 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
             </Button>
             <Separator />
             <p>{t('alreadyHaveAccount')} <Button variant="link" onClick={() => changeAuthState("signIn")}>{t('signIn')}</Button></p>
-          </form>
+          </>
         );
         break;
       case "confirmSignUp":
         backButtonText = t('backToSignUp');
-        form = (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        formContent = (
+          <>
             <div>
               <Label htmlFor="code">{t('confirmationCode')}</Label>
               <Input
                 id="code"
                 type="text"
                 {...register("code")}
+                autoComplete="off"
                 className={errors.code ? "border-red-500" : ""}
               />
               {errors.code && <p className="text-red-500 text-sm mt-1">{errors.code.message}</p>}
@@ -325,12 +339,12 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? t('submitting') : t('confirm')}
             </Button>
-          </form>
+          </>
         );
         break;
       case "forgotPassword":
-        form = (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        formContent = (
+          <>
             <div className="space-y-2">
               <Label htmlFor="email">{t('email')}</Label>
               <Input
@@ -346,38 +360,48 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
               {t('resetPassword')}
             </Button>
             <Button variant="link" onClick={() => changeAuthState("signIn")}>{t('backToSignIn')}</Button>
-          </form>
+          </>
         );
         break;
       case "resetPassword":
-        form = (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        formContent = (
+          <>
+            {/* Hidden username field to trick browsers */}
+            <input type="text" name="username" style={{display: 'none'}} aria-hidden="true" tabIndex={-1} autoComplete="off" />
+            
             <div className="space-y-2">
               <Label htmlFor="code">{t('confirmationCode')}</Label>
               <Input
                 id="code"
                 type="text"
                 {...register("code")}
+                autoComplete="off"
                 className={errors.code ? "border-red-500" : ""}
               />
               {errors.code && <p className="text-red-500 text-sm">{errors.code.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="newPassword">{t('newPassword')}</Label>
+              <Label htmlFor={`${passwordFieldId}-new`}>{t('newPassword')}</Label>
               <Input
-                id="newPassword"
+                id={`${passwordFieldId}-new`}
                 type="password"
                 {...register("newPassword")}
+                autoComplete="new-password"
+                data-lpignore="true"
+                data-form-type="other"
                 className={errors.newPassword ? "border-red-500" : ""}
               />
               {errors.newPassword && <p className="text-red-500 text-sm">{errors.newPassword.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmNewPassword">{t('confirmNewPassword')}</Label>
+              <Label htmlFor={`${passwordFieldId}-confirm`}>{t('confirmNewPassword')}</Label>
               <Input
-                id="confirmNewPassword"
+                id={`${passwordFieldId}-confirm`}
                 type="password"
                 {...register("confirmNewPassword")}
+                autoComplete="new-password"
+                data-lpignore="true"
+                data-form-type="other"
                 className={errors.confirmNewPassword ? "border-red-500" : ""}
               />
               {errors.confirmNewPassword && <p className="text-red-500 text-sm">{errors.confirmNewPassword.message}</p>}
@@ -386,7 +410,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {t('resetPassword')}
             </Button>
-          </form>
+          </>
         );
         break;
       default:
@@ -395,7 +419,15 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
 
     return (
       <div className="space-y-4">
-        {form}
+        <form 
+          ref={formRef} 
+          onSubmit={handleSubmit(onSubmit)} 
+          className="space-y-4" 
+          autoComplete="off"
+          data-lpignore="true"
+        >
+          {formContent}
+        </form>
         {showBackButton && (
           <Button
             type="button"
