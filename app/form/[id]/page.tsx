@@ -70,16 +70,16 @@ export default function FormPage(): JSX.Element {
         description:
           error instanceof Error
             ? error.message === "Unauthorized access"
-              ? t("unauthorizedAccess")
-              : t("errorFetchingFormDescription")
-            : t("errorFetchingFormDescription"),
+              ? "unauthorizedAccess"
+              : "errorFetchingFormDescription"
+            : "errorFetchingFormDescription",
         variant: "destructive",
       });
       router.push("/");
     } finally {
       setIsLoading(false);
     }
-  }, [params?.id, t, router]);
+  }, [params?.id, router]);
 
   useEffect(() => {
     fetchFormData();
