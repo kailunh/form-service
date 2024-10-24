@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 
 export const schema = a.schema({
   IncomeReport: a.model({
+      formType: a.string().required(),  // Add this line
       companyName: a.string().required(),
       ein: a.string().required(),
       dateIncorporated: a.string().required(),
