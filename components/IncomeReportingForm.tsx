@@ -30,6 +30,7 @@ import { useRouter } from 'next/navigation';
 import { Amplify } from 'aws-amplify';
 import outputs from "@/amplify_outputs.json";
 import { getCurrentUser } from 'aws-amplify/auth';
+import { DatePicker } from '@/components/ui/date-picker';
 
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
@@ -261,7 +262,10 @@ export function IncomeReportingForm(): JSX.Element {
           render={({ field }) => (
             <div className="space-y-2">
               <Label htmlFor="dateIncorporated">{t('dateIncorporated')}</Label>
-              <Input id="dateIncorporated" type="date" {...field} />
+              <DatePicker
+                value={field.value ? new Date(field.value) : undefined}
+                onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
+              />
               {errors.dateIncorporated && (
                 <p className="text-red-500 text-sm">
                   {errors.dateIncorporated.message}
