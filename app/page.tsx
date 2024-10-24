@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Amplify } from "aws-amplify";
-import { getCurrentUser } from 'aws-amplify/auth';
+import { getCurrentUser, AuthUser } from 'aws-amplify/auth';
 import outputs from "@/amplify_outputs.json";
 import "@aws-amplify/ui-react/styles.css";
 import { CustomAuthenticator } from "@/components/CustomAuthenticator";
@@ -13,17 +13,15 @@ import { Dashboard } from "@/components/Dashboard";
 
 Amplify.configure(outputs);
 
+export type AuthState = "signIn" | "signUp" | "confirmSignUp" | "forgotPassword" | "resetPassword" | "authenticated";
+
 export default function App(): JSX.Element {
-  const [authState, setAuthState] = useState("signIn");
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [authState, setAuthState] = useState<AuthState>("signIn");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const { t } = useTranslation();
 
-  useEffect(() => {
-    void checkUser();
-  }, []);
-
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     try {
       const userData = await getCurrentUser();
       setUser(userData);
@@ -34,9 +32,17 @@ export default function App(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleAuthStateChange = (state, loading, userData = null) => {
+  useEffect(() => {
+    void checkUser();
+  }, [checkUser]);
+
+  const handleAuthStateChange = useCallback((
+    state: AuthState,
+    loading: boolean,
+    userData: AuthUser | null = null
+  ) => {
     setAuthState(state);
     setIsLoading(loading);
     if (state === "authenticated") {
@@ -44,7 +50,7 @@ export default function App(): JSX.Element {
     } else {
       setUser(null);
     }
-  };
+  }, []);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -60,9 +66,7 @@ export default function App(): JSX.Element {
               <Dashboard />
             </main>
           </>
-        ) : (
-          <CustomAuthenticator onAuthStateChange={handleAuthStateChange} />
-        )}
+        ) : null}
       </CustomAuthenticator>
       <Toaster />
     </div>

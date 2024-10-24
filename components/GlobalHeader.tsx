@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ export function GlobalHeader() {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     setIsSigningOut(true);
     try {
       await signOut();
@@ -27,7 +27,7 @@ export function GlobalHeader() {
       console.error("Error signing out: ", error);
       setIsSigningOut(false);
     }
-  };
+  }, []);
 
   return (
     <header className="bg-background shadow-sm">

@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { useTranslation } from '@/lib/translations';
@@ -15,26 +15,33 @@ export function Dashboard(): JSX.Element {
 
   const [forms, setForms] = React.useState([]);
 
-  React.useEffect(() => {
-    void fetchForms();
-  }, []);
-
-  const fetchForms = async () => {
+  const fetchForms = useCallback(async () => {
     try {
       const { data } = await client.models.IncomeReport.list();
       setForms(data);
     } catch (error) {
       console.error("Error fetching forms:", error);
     }
-  };
+  }, []);
 
-  const handleCreateNewForm = () => {
+  React.useEffect(() => {
+    void fetchForms();
+  }, [fetchForms]);
+
+  const handleCreateNewForm = useCallback(() => {
     router.push('/new-form');
-  };
+  }, [router]);
 
-  const handleViewForm = (id: string) => {
+  const handleViewForm = useCallback((id: string) => {
     router.push(`/form/${id}`);
-  };
+  }, [router]);
+
+  const memoizedForms = useMemo(() => forms.map((form) => (
+    <div key={form.id} className="p-4 border rounded-lg hover:bg-accent cursor-pointer" onClick={() => handleViewForm(form.id)}>
+      <h2 className="font-semibold">{form.companyName}</h2>
+      <p className="text-sm text-muted-foreground">{new Date(form.createdAt).toLocaleDateString()}</p>
+    </div>
+  )), [forms, handleViewForm]);
 
   return (
     <div className="space-y-6">
@@ -43,12 +50,7 @@ export function Dashboard(): JSX.Element {
         <Button onClick={handleCreateNewForm}>{t('createNewForm')}</Button>
       </div>
       <div className="grid gap-4">
-        {forms.map((form) => (
-          <div key={form.id} className="p-4 border rounded-lg hover:bg-accent cursor-pointer" onClick={() => handleViewForm(form.id)}>
-            <h2 className="font-semibold">{form.companyName}</h2>
-            <p className="text-sm text-muted-foreground">{new Date(form.createdAt).toLocaleDateString()}</p>
-          </div>
-        ))}
+        {memoizedForms}
       </div>
     </div>
   );

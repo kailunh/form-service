@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,10 +10,17 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useTranslation } from '@/lib/translations';
 import { Loader2 } from "lucide-react";
-import { signIn, signUp, resendSignUpCode, confirmSignUp, resetPassword, confirmResetPassword, getCurrentUser } from 'aws-amplify/auth';
+import { signIn, signUp, resendSignUpCode, confirmSignUp, resetPassword, confirmResetPassword, getCurrentUser, AuthUser } from 'aws-amplify/auth';
 import { useToast } from "@/components/ui/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { AuthState } from "@/app/page"; // Import AuthState type from app/page.tsx
+
+// Define the CustomAuthenticatorProps type
+type CustomAuthenticatorProps = {
+  children: ReactNode;
+  onAuthStateChange: (state: AuthState, loading: boolean, userData: AuthUser | null) => void;
+};
 
 const signInSchema = z.object({
   email: z.string().email(),
@@ -48,31 +55,28 @@ const resetPasswordSchema = z.object({
   path: ["confirmNewPassword"],
 });
 
+type FormSchema = z.infer<typeof signInSchema> | z.infer<typeof signUpSchema> | z.infer<typeof confirmSignUpSchema> | z.infer<typeof forgotPasswordSchema> | z.infer<typeof resetPasswordSchema>;
+
 export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthenticatorProps): JSX.Element {
-  const [authState, setAuthState] = useState("signIn");
-  const [previousAuthState, setPreviousAuthState] = useState(null);
+  const [authState, setAuthState] = useState<AuthState>("signIn");
+  const [previousAuthState, setPreviousAuthState] = useState<AuthState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
   const { t } = useTranslation();
   const { toast } = useToast();
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormSchema>({
     resolver: zodResolver(
       authState === "signIn" ? signInSchema :
       authState === "signUp" ? signUpSchema :
       authState === "confirmSignUp" ? confirmSignUpSchema :
       authState === "forgotPassword" ? forgotPasswordSchema :
-      authState === "resetPassword" ? resetPasswordSchema :
-      signInSchema
+      resetPasswordSchema
     ),
   });
 
-  useEffect(() => {
-    void checkUser();
-  }, []);
-
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     try {
       const userData = await getCurrentUser();
       setAuthState("authenticated");
@@ -80,18 +84,22 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
     } catch (err) {
       setAuthState("signIn");
     }
-  };
+  }, [onAuthStateChange]);
 
-  const changeAuthState = (newState, email = "") => {
+  useEffect(() => {
+    void checkUser();
+  }, [checkUser]);
+
+  const changeAuthState = useCallback((newState: AuthState, email: string = "") => {
     setPreviousAuthState(authState);
     setAuthState(newState);
     if (email) {
       setEmail(email);
       if (newState === "confirmSignUp") {
-        sendConfirmationCode(email);
+        void sendConfirmationCode(email);
       }
     }
-  };
+  }, [authState]);
 
   const goBack = () => {
     if (previousAuthState) {
@@ -100,7 +108,7 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
     }
   };
 
-  const sendConfirmationCode = async (email) => {
+  const sendConfirmationCode = useCallback(async (email: string) => {
     try {
       setIsLoading(true);
       await resendSignUpCode({ username: email });
@@ -118,56 +126,58 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [t, toast]);
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+  const onSubmit = async (data: FormSchema) => {
     setIsLoading(true);
     setError("");
     try {
       switch (authState) {
         case "signIn":
-          try {
-            const res = await signIn({ username: data.email, password: data.password });
-            if (res.nextStep.signInStep === 'CONFIRM_SIGN_UP') {
-              changeAuthState("confirmSignUp", data.email);
-            } else {
-              await checkUser();
+          if ('password' in data) {
+            try {
+              const res = await signIn({ username: data.email, password: data.password });
+              if (res.nextStep.signInStep === 'CONFIRM_SIGN_UP') {
+                changeAuthState("confirmSignUp", data.email);
+              } else if (res.isSignedIn) {
+                // Handle successful sign in
+                const user = await getCurrentUser();
+                onAuthStateChange("authenticated", false, user);
+                // Add this line to update the local state
+                setAuthState("authenticated");
+              }
+            } catch (error) {
+              console.error("Sign in error:", error);
+              setError(error instanceof Error ? error.message : "An unknown error occurred during sign in");
             }
-          } catch (err) {
-            if (err instanceof Error && err.name === "UserNotConfirmedException") {
-              changeAuthState("confirmSignUp", data.email);
-            } else {
-              toast({
-                title: t('signInError'),
-                description: t('invalidCredentials'),
-                variant: "destructive",
-              });
-            }
+          } else {
+            setError("Invalid form data for sign in");
           }
           break;
         case "signUp":
-          try {
-            await signUp({ username: data.email, password: data.password });
-            setEmail(data.email);
-            changeAuthState("confirmSignUp");
-          } catch (err) {
-            toast({
-              title: t('signUpError'),
-              description: t('signUpErrorDescription'),
-              variant: "destructive",
-            });
+          if ('password' in data && 'confirmPassword' in data) {
+            try {
+              await signUp({ username: data.email, password: data.password });
+              changeAuthState("confirmSignUp", data.email);
+            } catch (error) {
+              console.error("Sign up error:", error);
+              setError(error instanceof Error ? error.message : "An unknown error occurred during sign up");
+            }
+          } else {
+            setError("Invalid form data for sign up");
           }
           break;
         case "confirmSignUp":
-          try {
-            await confirmSignUp({ username: email, confirmationCode: data.code });
-            changeAuthState("signIn");
-          } catch (err) {
-            toast({
-              title: t('confirmSignUpError'),
-              description: t('confirmSignUpErrorDescription'),
-              variant: "destructive",
-            });
+          if ('code' in data) {
+            try {
+              await confirmSignUp({ username: data.email, confirmationCode: data.code });
+              changeAuthState("signIn", data.email);
+            } catch (error) {
+              console.error("Confirm sign up error:", error);
+              setError(error instanceof Error ? error.message : "An unknown error occurred during confirmation");
+            }
+          } else {
+            setError("Invalid form data for confirm sign up");
           }
           break;
         case "forgotPassword":
@@ -184,24 +194,32 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
           }
           break;
         case "resetPassword":
-          try {
-            await confirmResetPassword({ 
-              username: email, 
-              newPassword: data.newPassword, 
-              confirmationCode: data.code 
-            });
-            changeAuthState("signIn");
-          } catch (err) {
-            toast({
-              title: t('resetPasswordError'),
-              description: t('resetPasswordErrorDescription'),
-              variant: "destructive",
-            });
+          if ('newPassword' in data && 'code' in data) {
+            try {
+              await confirmResetPassword({
+                username: email,
+                newPassword: data.newPassword,
+                confirmationCode: data.code
+              });
+              changeAuthState("signIn");
+              toast({
+                title: t('passwordResetSuccess'),
+                description: t('passwordResetSuccessDescription'),
+              });
+            } catch (error) {
+              console.error("Reset password error:", error);
+              setError(error instanceof Error ? error.message : "An unknown error occurred during password reset");
+            }
+          } else {
+            setError("Invalid form data for password reset");
           }
           break;
+        default:
+          throw new Error("Invalid auth state");
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      console.error("Auth error:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -393,9 +411,11 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
   };
 
   return (
-<div className="w-full mx-auto mt-4 sm:mt-8">
-  {authState !== "authenticated" && (
-    <div className="w-full max-w-md mx-auto p-4 sm:p-6 bg-background text-foreground rounded-lg shadow-md">
+    <div className="w-full mx-auto mt-4 sm:mt-8">
+      {authState === "authenticated" ? (
+        children
+      ) : (
+        <div className="w-full max-w-md mx-auto p-4 sm:p-6 bg-background text-foreground rounded-lg shadow-md">
           <div className="flex justify-end space-x-2 mb-4">
             <ThemeToggle />
             <LanguageSwitcher />
@@ -411,7 +431,6 @@ export function CustomAuthenticator({ children, onAuthStateChange }: CustomAuthe
           {error && <p className="text-red-500 text-center mt-4">{error}</p>}
         </div>
       )}
-      {authState === "authenticated" && children}
     </div>
   );
 }

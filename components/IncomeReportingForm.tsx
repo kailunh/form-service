@@ -1,70 +1,79 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo } from 'react';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import React, { useState, useMemo } from "react";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import { useTranslation } from '@/lib/translations';
-import { toast } from '@/components/ui/use-toast';
-import { generateClient } from 'aws-amplify/api';
-import { type Schema } from '@/amplify/data/resource';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import { SearchableSelect } from '@/components/ui/searchable-select';
-import { countries } from '@/lib/countries';
-import { naicsCodes } from '@/lib/naicsCodes';
-import { states } from '@/lib/states';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import { useRouter } from 'next/navigation';
-import { Amplify } from 'aws-amplify';
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { useTranslation } from "@/lib/translations";
+import { toast } from "@/components/ui/use-toast";
+import { generateClient } from "aws-amplify/api";
+import { type Schema } from "@/amplify/data/resource";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { countries } from "@/lib/countries";
+import { naicsCodes } from "@/lib/naicsCodes";
+import { states } from "@/lib/states";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { useRouter } from "next/navigation";
+import { Amplify } from "aws-amplify";
 import outputs from "@/amplify_outputs.json";
-import { getCurrentUser } from 'aws-amplify/auth';
-import { DatePicker } from '@/components/ui/date-picker';
+import { getCurrentUser } from "aws-amplify/auth";
+import { DatePicker } from "@/components/ui/date-picker";
 
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
 
 const formSchema = z.object({
-  formType: z.string(),  // Add this line
-  companyName: z.string().min(1, { message: 'Company name is required' }),
-  ein: z.string().min(1, { message: 'EIN is required' }),
-  dateIncorporated: z
-    .string()
-    .min(1, { message: 'Date incorporated is required' }),
+  formType: z.string(), // Add this line
+  companyName: z.string().min(1, { message: "Company name is required" }),
+  ein: z.string().min(1, { message: "EIN is required" }),
+  dateIncorporated: z.date({
+    required_error: "Date incorporated is required",
+  }),
   isInitialReturn: z.boolean(),
   isFinalReturn: z.boolean(),
   hasNameChanged: z.boolean(),
   hasAddressChanged: z.boolean(),
   shareholders: z.array(
     z.object({
-      name: z.string().min(1, { message: 'Shareholder name is required' }),
-      title: z.string().min(1, { message: 'Shareholder title is required' }),
+      name: z.string().min(1, { message: "Shareholder name is required" }),
+      title: z.string().min(1, { message: "Shareholder title is required" }),
       sharePercentage: z
         .string()
-        .min(1, { message: 'Share percentage is required' }),
-      nationality: z.string().min(1, { message: 'Nationality is required' }),
+        .min(1, { message: "Share percentage is required" }),
+      nationality: z.string().min(1, { message: "Nationality is required" }),
     })
   ),
   accountingMethod: z
     .string()
-    .min(1, { message: 'Accounting method is required' }),
-  naicsCode: z.string().min(1, { message: 'NAICS code is required' }),
-  address: z.string().min(1, { message: 'Address is required' }),
-  city: z.string().min(1, { message: 'City is required' }),
-  state: z.string().min(1, { message: 'State is required' }),
-  zipCode: z.string().min(1, { message: 'ZIP code is required' }),
-  country: z.string().min(1, { message: 'Country is required' }),
+    .min(1, { message: "Accounting method is required" }),
+  naicsCode: z.string().min(1, { message: "NAICS code is required" }),
+  address: z.string().min(1, { message: "Address is required" }),
+  city: z.string().min(1, { message: "City is required" }),
+  state: z.string().min(1, { message: "State is required" }),
+  zipCode: z.string().min(1, { message: "ZIP code is required" }),
+  country: z.string().min(1, { message: "Country is required" }),
 });
 
 export function IncomeReportingForm(): JSX.Element {
@@ -79,59 +88,67 @@ export function IncomeReportingForm(): JSX.Element {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: useMemo(() => ({
-      formType: 'businessIncome',  // Add this line
-      companyName: '',
-      ein: '',
-      dateIncorporated: '',
-      isInitialReturn: false,
-      isFinalReturn: false,
-      hasNameChanged: false,
-      hasAddressChanged: false,
-      shareholders: [
-        { name: '', title: '', sharePercentage: '', nationality: '' },
-      ],
-      accountingMethod: '',
-      naicsCode: '',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: '',
-    }), [])
+    defaultValues: useMemo(
+      () => ({
+        formType: "businessIncome", // Add this line
+        companyName: "",
+        ein: "",
+        dateIncorporated: new Date(),
+        isInitialReturn: false,
+        isFinalReturn: false,
+        hasNameChanged: false,
+        hasAddressChanged: false,
+        shareholders: [
+          { name: "", title: "", sharePercentage: "", nationality: "" },
+        ],
+        accountingMethod: "",
+        naicsCode: "",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "",
+      }),
+      []
+    ),
   });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'shareholders',
+    name: "shareholders",
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
       if (!client.models.IncomeReport) {
-        throw new Error('IncomeReport model not found');
+        throw new Error("IncomeReport model not found");
       }
-      
-       await client.models.IncomeReport.create({
-        ...data,
-        shareholders: JSON.stringify(data.shareholders)
-      },
-      {
-        authMode: 'userPool',
-      });
+
+      await client.models.IncomeReport.create(
+        {
+          ...data,
+          shareholders: JSON.stringify(data.shareholders),
+        },
+        {
+          authMode: "userPool",
+        }
+      );
 
       toast({
-        title: t('formSubmitted'),
-        description: t('formSubmittedDescription'),
+        title: t("formSubmitted"),
+        description: t("formSubmittedDescription"),
       });
-      void router.push('/');
+      void router.push("/");
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error("Error submitting form:", error);
       toast({
-        title: t('formSubmissionError'),
-        description: error instanceof Error ? error.message : t('formSubmissionErrorDescription'),
-        variant: 'destructive',
+        title: t("formSubmissionError"),
+        description:
+          error instanceof Error
+            ? error.message
+            : t("formSubmissionErrorDescription"),
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -139,24 +156,24 @@ export function IncomeReportingForm(): JSX.Element {
   };
 
   const handleBack = () => {
-    router.push('/');
+    router.push("/");
   };
 
   const handleCancel = () => {
     // Navigate back to the dashboard or previous page
-    router.push('/');
+    router.push("/");
   };
 
   return (
-<form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
-  <div className="space-y-4">
-        <h2 className="text-2xl font-bold">{t('companyInformation')}</h2>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold">{t("companyInformation")}</h2>
         <Controller
           name="companyName"
           control={control}
           render={({ field }) => (
             <div className="space-y-2">
-              <Label htmlFor="companyName">{t('companyName')}</Label>
+              <Label htmlFor="companyName">{t("companyName")}</Label>
               <Input id="companyName" {...field} />
               {errors.companyName && (
                 <p className="text-red-500 text-sm">
@@ -166,89 +183,97 @@ export function IncomeReportingForm(): JSX.Element {
             </div>
           )}
         />
-         <div>
-        <Label htmlFor="address">{t('address')}</Label>
-        <Controller
-          name="address"
-          control={control}
-          render={({ field }) => <Input {...field} />}
-        />
-        {errors.address && (
-          <p className="text-red-500 text-sm mt-1">{errors.address.message}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="city">{t('city')}</Label>
+          <Label htmlFor="address">{t("address")}</Label>
           <Controller
-            name="city"
+            name="address"
             control={control}
             render={({ field }) => <Input {...field} />}
           />
-          {errors.city && (
-            <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>
+          {errors.address && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.address.message}
+            </p>
           )}
         </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="city">{t("city")}</Label>
+            <Controller
+              name="city"
+              control={control}
+              render={({ field }) => <Input {...field} />}
+            />
+            {errors.city && (
+              <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="state">{t("state")}</Label>
+            <Controller
+              name="state"
+              control={control}
+              render={({ field }) => (
+                <SearchableSelect
+                  options={states}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder={t("selectState")}
+                  emptyMessage={t("noStatesFound")}
+                />
+              )}
+            />
+            {errors.state && (
+              <p className="text-red-500 text-sm mt-1">
+                {errors.state.message}
+              </p>
+            )}
+          </div>
+        </div>
+
         <div>
-          <Label htmlFor="state">{t('state')}</Label>
+          <Label htmlFor="zipCode">{t("zipCode")}</Label>
           <Controller
-            name="state"
+            name="zipCode"
+            control={control}
+            render={({ field }) => <Input {...field} />}
+          />
+          {errors.zipCode && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.zipCode.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="country">{t("country")}</Label>
+          <Controller
+            name="country"
             control={control}
             render={({ field }) => (
               <SearchableSelect
-                options={states}
+                options={countries}
                 value={field.value}
                 onValueChange={field.onChange}
-                placeholder={t('selectState')}
-                emptyMessage={t('noStatesFound')}
+                placeholder={t("selectCountry")}
+                emptyMessage={t("noCountriesFound")}
               />
             )}
           />
-          {errors.state && (
-            <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>
+          {errors.country && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.country.message}
+            </p>
           )}
         </div>
-      </div>
-
-      <div>
-        <Label htmlFor="zipCode">{t('zipCode')}</Label>
-        <Controller
-          name="zipCode"
-          control={control}
-          render={({ field }) => <Input {...field} />}
-        />
-        {errors.zipCode && (
-          <p className="text-red-500 text-sm mt-1">{errors.zipCode.message}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="country">{t('country')}</Label>
-        <Controller
-          name="country"
-          control={control}
-          render={({ field }) => (
-            <SearchableSelect
-              options={countries}
-              value={field.value}
-              onValueChange={field.onChange}
-              placeholder={t('selectCountry')}
-              emptyMessage={t('noCountriesFound')}
-            />
-          )}
-        />
-        {errors.country && (
-          <p className="text-red-500 text-sm mt-1">{errors.country.message}</p>
-        )}
-      </div>
 
         <Controller
           name="ein"
           control={control}
           render={({ field }) => (
             <div className="space-y-2">
-              <Label htmlFor="ein">{t('ein')}</Label>
+              <Label htmlFor="ein">{t("ein")}</Label>
               <Input id="ein" {...field} />
               {errors.ein && (
                 <p className="text-red-500 text-sm">{errors.ein.message}</p>
@@ -261,11 +286,36 @@ export function IncomeReportingForm(): JSX.Element {
           control={control}
           render={({ field }) => (
             <div className="space-y-2">
-              <Label htmlFor="dateIncorporated">{t('dateIncorporated')}</Label>
-              <DatePicker
-                value={field.value ? new Date(field.value) : undefined}
-                onChange={(date) => field.onChange(date?.toISOString().split('T')[0])}
-              />
+              <Label htmlFor="dateIncorporated">{t("dateIncorporated")}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !field.value && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {field.value ? (
+                      format(field.value, "PPP")
+                    ) : (
+                      <span>{t("pickADate")}</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date > new Date() || date < new Date("1900-01-01")
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
               {errors.dateIncorporated && (
                 <p className="text-red-500 text-sm">
                   {errors.dateIncorporated.message}
@@ -287,7 +337,7 @@ export function IncomeReportingForm(): JSX.Element {
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
-              <Label htmlFor="isInitialReturn">{t('isInitialReturn')}</Label>
+              <Label htmlFor="isInitialReturn">{t("isInitialReturn")}</Label>
             </div>
           )}
         />
@@ -301,7 +351,7 @@ export function IncomeReportingForm(): JSX.Element {
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
-              <Label htmlFor="isFinalReturn">{t('isFinalReturn')}</Label>
+              <Label htmlFor="isFinalReturn">{t("isFinalReturn")}</Label>
             </div>
           )}
         />
@@ -315,7 +365,7 @@ export function IncomeReportingForm(): JSX.Element {
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
-              <Label htmlFor="hasNameChanged">{t('hasNameChanged')}</Label>
+              <Label htmlFor="hasNameChanged">{t("hasNameChanged")}</Label>
             </div>
           )}
         />
@@ -330,7 +380,7 @@ export function IncomeReportingForm(): JSX.Element {
                 onCheckedChange={field.onChange}
               />
               <Label htmlFor="hasAddressChanged">
-                {t('hasAddressChanged')}
+                {t("hasAddressChanged")}
               </Label>
             </div>
           )}
@@ -338,7 +388,7 @@ export function IncomeReportingForm(): JSX.Element {
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">{t('shareholders')}</h2>
+        <h2 className="text-2xl font-bold">{t("shareholders")}</h2>
         {fields.map((field, index) => (
           <div key={field.id} className="space-y-4 mb-4">
             <Controller
@@ -347,7 +397,7 @@ export function IncomeReportingForm(): JSX.Element {
               render={({ field }) => (
                 <div className="space-y-2">
                   <Label htmlFor={`shareholderName${index}`}>
-                    {t('shareholderName')}
+                    {t("shareholderName")}
                   </Label>
                   <Input id={`shareholderName${index}`} {...field} />
                   {errors.shareholders?.[index]?.name && (
@@ -364,7 +414,7 @@ export function IncomeReportingForm(): JSX.Element {
               render={({ field }) => (
                 <div className="space-y-2">
                   <Label htmlFor={`shareholderTitle${index}`}>
-                    {t('shareholderTitle')}
+                    {t("shareholderTitle")}
                   </Label>
                   <Input id={`shareholderTitle${index}`} {...field} />
                   {errors.shareholders?.[index]?.title && (
@@ -381,7 +431,7 @@ export function IncomeReportingForm(): JSX.Element {
               render={({ field }) => (
                 <div className="space-y-2">
                   <Label htmlFor={`sharePercentage${index}`}>
-                    {t('sharePercentage')}
+                    {t("sharePercentage")}
                   </Label>
                   <Input id={`sharePercentage${index}`} {...field} />
                   {errors.shareholders?.[index]?.sharePercentage && (
@@ -398,14 +448,14 @@ export function IncomeReportingForm(): JSX.Element {
               render={({ field }) => (
                 <div>
                   <Label htmlFor={`shareholders.${index}.nationality`}>
-                    {t('nationality')}
+                    {t("nationality")}
                   </Label>
                   <SearchableSelect
                     options={countries}
                     value={field.value}
                     onValueChange={field.onChange}
-                    placeholder={t('selectNationality')}
-                    emptyMessage={t('noCountriesFound')}
+                    placeholder={t("selectNationality")}
+                    emptyMessage={t("noCountriesFound")}
                   />
                   {errors.shareholders?.[index]?.nationality && (
                     <p className="text-red-500 text-sm mt-1">
@@ -421,7 +471,7 @@ export function IncomeReportingForm(): JSX.Element {
                 variant="destructive"
                 onClick={() => remove(index)}
               >
-                {t('removeShareholder')}
+                {t("removeShareholder")}
               </Button>
             )}
           </div>
@@ -430,19 +480,19 @@ export function IncomeReportingForm(): JSX.Element {
           type="button"
           onClick={() =>
             append({
-              name: '',
-              title: '',
-              sharePercentage: '',
-              nationality: '',
+              name: "",
+              title: "",
+              sharePercentage: "",
+              nationality: "",
             })
           }
         >
-          {t('addShareholder')}
+          {t("addShareholder")}
         </Button>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">{t('accountingMethod')}</h2>
+        <h2 className="text-2xl font-bold">{t("accountingMethod")}</h2>
         <Controller
           name="accountingMethod"
           control={control}
@@ -450,15 +500,19 @@ export function IncomeReportingForm(): JSX.Element {
             <div>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t('selectAccountingMethod')} />
+                  <SelectValue placeholder={t("selectAccountingMethod")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cashMethod">{t('cashMethod')}</SelectItem>
-                  <SelectItem value="accrualMethod">{t('accrualMethod')}</SelectItem>
+                  <SelectItem value="cashMethod">{t("cashMethod")}</SelectItem>
+                  <SelectItem value="accrualMethod">
+                    {t("accrualMethod")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
               {errors.accountingMethod && (
-                <p className="text-red-500 text-sm mt-1">{errors.accountingMethod.message}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.accountingMethod.message}
+                </p>
               )}
             </div>
           )}
@@ -466,7 +520,7 @@ export function IncomeReportingForm(): JSX.Element {
       </div>
 
       <div>
-        <Label htmlFor="naicsCode">{t('naicsCode')}</Label>
+        <Label htmlFor="naicsCode">{t("naicsCode")}</Label>
         <Controller
           name="naicsCode"
           control={control}
@@ -476,11 +530,11 @@ export function IncomeReportingForm(): JSX.Element {
                 options={naicsCodes}
                 value={field.value}
                 onValueChange={(value) => {
-                  console.log('NAICS code changed:', value);
+                  console.log("NAICS code changed:", value);
                   field.onChange(value);
                 }}
-                placeholder={t('selectNaicsCode')}
-                emptyMessage={t('noCodesFound')}
+                placeholder={t("selectNaicsCode")}
+                emptyMessage={t("noCodesFound")}
               />
             </ErrorBoundary>
           )}
@@ -497,10 +551,10 @@ export function IncomeReportingForm(): JSX.Element {
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {t('submitting')}
+              {t("submitting")}
             </>
           ) : (
-            t('submitForm')
+            t("submitForm")
           )}
         </Button>
         <Button
@@ -510,7 +564,7 @@ export function IncomeReportingForm(): JSX.Element {
           onClick={handleCancel}
           disabled={isSubmitting}
         >
-          {t('cancel')}
+          {t("cancel")}
         </Button>
       </div>
     </form>

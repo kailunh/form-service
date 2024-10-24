@@ -89,6 +89,7 @@ const translations = {
     confirmationCodeError: 'Confirmation Code Error',
     confirmationCodeErrorDescription: 'There was an error sending the confirmation code. Please try again.',
     generalErrorDescription: 'An unexpected error occurred. Please try again later.',
+    pickADate: 'Pick a date',
   },
   zh: {
     companyInformation: '公司信息',
@@ -178,6 +179,7 @@ const translations = {
     confirmationCodeError: '确认码错误',
     confirmationCodeErrorDescription: '发送确认码时出错。请重试。',
     generalErrorDescription: '发生意外错误。请稍后再试。',
+    pickADate: '选择日期',
   },
 };
 
