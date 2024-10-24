@@ -126,13 +126,31 @@ export function IncomeReportingForm(): JSX.Element {
 
       const response = await client.models.IncomeReport.create(
         {
-          ...data,
+          formType: data.formType,  // Add this line
+          companyName: data.companyName,
+          ein: data.ein,
+          dateIncorporated: data.dateIncorporated.toISOString(),
+          isInitialReturn: data.isInitialReturn,
+          isFinalReturn: data.isFinalReturn,
+          hasNameChanged: data.hasNameChanged,
+          hasAddressChanged: data.hasAddressChanged,
           shareholders: JSON.stringify(data.shareholders),
+          accountingMethod: data.accountingMethod,
+          naicsCode: data.naicsCode,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          zipCode: data.zipCode,
+          country: data.country,
         },
         {
           authMode: "userPool",
         }
       );
+      if (response.errors && response.errors.length > 0) {
+        console.error("Error submitting form:", response.errors);
+        throw new Error("Error submitting form");
+      }
       console.log("Response:", response);
       toast({
         title: t("formSubmitted"),
