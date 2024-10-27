@@ -10,6 +10,7 @@ import { useTranslation } from '@/lib/translations';
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { Dashboard } from "@/components/Dashboard";
+import { Storage } from 'aws-amplify/storage';
 
 Amplify.configure(outputs);
 

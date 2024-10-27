@@ -7,6 +7,7 @@ import { useTranslation } from '@/lib/translations';
 import { generateClient } from 'aws-amplify/api';
 import { type Schema } from '@/amplify/data/resource';
 import { PlusCircle, Loader2 } from 'lucide-react'; // Import Loader2 icon
+import { FileManagement } from "@/components/FileManagement";
 
 const client = generateClient<Schema>();
 
@@ -77,6 +78,10 @@ export function Dashboard(): JSX.Element {
           </div>
         </>
       )}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">{t('fileManagement')}</h2>
+        <FileManagement />
+      </div>
     </div>
   );
 }
