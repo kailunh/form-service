@@ -1,11 +1,7 @@
-import { defineBackend } from '@aws-amplify/backend';
+import { defineBackend, defineStorage } from '@aws-amplify/backend';
 import { auth } from './auth/resource.js';
 import { data } from './data/resource.js';
-
-const storage = defineStorage({
-  name: 'amplifyDrive',
-});
-
+import {storage} from './storage/resource.js'
 
 defineBackend({
   auth,
