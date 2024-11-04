@@ -5,7 +5,9 @@ export const storage = defineStorage({
   access: (allow) => ({
     'forms/{entity_id}/*': [
       // {entity_id} is the token that is replaced with the user identity id
-      allow.entity('identity').to(['read', 'write', 'delete'])
+      allow.entity('identity').to(['read', 'write', 'delete']),
+      allow.guest.to(['read']),
+      allow.authenticated.to(['read'])
     ]
   })
 });
