@@ -46,7 +46,7 @@ type FormData = {
   owner: string | null;
 } | null;
 
-export default function FormPage(): JSX.Element {
+export function FormDetails() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useParams();
@@ -106,7 +106,6 @@ export default function FormPage(): JSX.Element {
 
   return (
     <div className="min-h-screen bg-background">
-      <GlobalHeader />
       <main className="container mx-auto p-4 sm:p-6">
         <Button onClick={handleBack} variant="outline" className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />

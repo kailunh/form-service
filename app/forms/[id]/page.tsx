@@ -1,7 +1,7 @@
 "use client";
 
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { FormDetails } from "@/components/FormDetails";
+import { FormDetails } from "./FormDetails";
 
 export default function FormDetailsPage() {
   return (

@@ -43,30 +43,52 @@ import { getCurrentUser } from "aws-amplify/auth";
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
 
+type Shareholder = {
+  shareholderType: string;
+  name: string;
+  title: string;
+  corporationName?: string;
+  corporationEIN?: string;
+  entityType?: string;
+  countryOfOrganization: string;
+  sharePercentage: string;
+  ssnOrItin?: string;
+  address: string;
+  isSigningOfficer: boolean;
+  hasCapitalContributions: boolean;
+};
+
 const formSchema = z.object({
-  formType: z.string(), // Add this line
+  formType: z.string(),
   companyName: z.string().min(1, { message: "Company name is required" }),
   ein: z.string().min(1, { message: "EIN is required" }),
   dateIncorporated: z.date({
     required_error: "Date incorporated is required",
   }),
+  mainProductOrService: z.string().min(1, { message: "Main product or service is required" }),
+  hasSubsidiaries: z.boolean(),
+  hasSignificantOwnership: z.boolean().optional(),
   isInitialReturn: z.boolean(),
   isFinalReturn: z.boolean(),
   hasNameChanged: z.boolean(),
   hasAddressChanged: z.boolean(),
   shareholders: z.array(
     z.object({
+      shareholderType: z.enum(["individual", "corporation"]),
       name: z.string().min(1, { message: "Shareholder name is required" }),
       title: z.string().min(1, { message: "Shareholder title is required" }),
-      sharePercentage: z
-        .string()
-        .min(1, { message: "Share percentage is required" }),
-      nationality: z.string().min(1, { message: "Nationality is required" }),
+      corporationName: z.string().optional(),
+      corporationEIN: z.string().optional(),
+      entityType: z.string().optional(),
+      countryOfOrganization: z.string().min(1, { message: "Country of organization is required" }),
+      sharePercentage: z.string().min(1, { message: "Share percentage is required" }),
+      ssnOrItin: z.string().optional(),
+      address: z.string().min(1, { message: "Address is required" }),
+      isSigningOfficer: z.boolean(),
+      hasCapitalContributions: z.boolean(),
     })
   ),
-  accountingMethod: z
-    .string()
-    .min(1, { message: "Accounting method is required" }),
+  accountingMethod: z.string().min(1, { message: "Accounting method is required" }),
   naicsCode: z.string().min(1, { message: "NAICS code is required" }),
   address: z.string().min(1, { message: "Address is required" }),
   city: z.string().min(1, { message: "City is required" }),
@@ -89,16 +111,32 @@ export function IncomeReportingForm(): JSX.Element {
     resolver: zodResolver(formSchema),
     defaultValues: useMemo(
       () => ({
-        formType: "businessIncome", // Add this line
+        formType: "businessIncome",
         companyName: "",
         ein: "",
         dateIncorporated: new Date(),
+        mainProductOrService: "",
+        hasSubsidiaries: false,
+        hasSignificantOwnership: false,
         isInitialReturn: false,
         isFinalReturn: false,
         hasNameChanged: false,
         hasAddressChanged: false,
         shareholders: [
-          { name: "", title: "", sharePercentage: "", nationality: "" },
+          {
+            shareholderType: "individual",
+            name: "",
+            title: "",
+            corporationName: "",
+            corporationEIN: "",
+            entityType: "",
+            countryOfOrganization: "",
+            sharePercentage: "",
+            ssnOrItin: "",
+            address: "",
+            isSigningOfficer: false,
+            hasCapitalContributions: false,
+          },
         ],
         accountingMethod: "",
         naicsCode: "",
@@ -126,10 +164,13 @@ export function IncomeReportingForm(): JSX.Element {
 
       const response = await client.models.IncomeReport.create(
         {
-          formType: data.formType,  // Add this line
+          formType: data.formType,
           companyName: data.companyName,
           ein: data.ein,
           dateIncorporated: data.dateIncorporated.toISOString(),
+          mainProductOrService: data.mainProductOrService,
+          hasSubsidiaries: data.hasSubsidiaries,
+          hasSignificantOwnership: data.hasSignificantOwnership,
           isInitialReturn: data.isInitialReturn,
           isFinalReturn: data.isFinalReturn,
           hasNameChanged: data.hasNameChanged,

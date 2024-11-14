@@ -7,7 +7,7 @@ import { useTranslation } from '@/lib/translations';
 import { generateClient } from 'aws-amplify/api';
 import { type Schema } from '@/amplify/data/resource';
 import { PlusCircle, Loader2 } from 'lucide-react'; // Import Loader2 icon
-import { FileManagement } from "@/components/FileManagement";
+import { FileManagement } from "./FileManagement";
 
 const client = generateClient<Schema>();
 
@@ -36,11 +36,11 @@ export function Dashboard(): JSX.Element {
   }, [fetchForms]);
 
   const handleCreateNewForm = useCallback(() => {
-    router.push('/new-form');
+    router.push('/forms/new');
   }, [router]);
 
   const handleViewForm = useCallback((id: string) => {
-    router.push(`/form/${id}`);
+    router.push(`/forms/${id}`);
   }, [router]);
 
   const memoizedForms = useMemo(() => forms.map((form) => (
