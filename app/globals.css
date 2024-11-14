@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import 'react-day-picker/dist/style.css';
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -50,7 +48,7 @@
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 20%; /* Slightly lighter than before */
+    --border: 0 0% 20%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
     --chart-1: 220 70% 50%;
@@ -90,6 +88,7 @@
   --rdp-background-color-dark: hsl(var(--background));
   --rdp-outline: 2px solid var(--rdp-accent-color);
   --rdp-outline-selected: 3px solid var(--rdp-accent-color);
+  margin: 1em;
 }
 
 .rdp-day_selected, 
@@ -134,7 +133,7 @@
 
   .date-picker-popover .rdp-cell {
     height: auto;
-    padding-bottom: 12.5%; /* 100% / 8 to account for 7 days + some padding */
+    padding-bottom: 12.5%;
   }
 
   .date-picker-popover .rdp-day {

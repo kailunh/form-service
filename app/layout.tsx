@@ -1,8 +1,10 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
 import ClientProviders from '@/components/ClientProviders';
+import { createServerRunner } from '@aws-amplify/adapter-nextjs';
+import outputs from '@/amplify_outputs.json';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -10,6 +12,10 @@ export const metadata: Metadata = {
   title: 'Income Reporting Form',
   description: 'Report your personal and business income',
 };
+
+const runner = createServerRunner({
+  config: outputs
+});
 
 export default function RootLayout({
   children,

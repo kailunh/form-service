@@ -1,74 +1,52 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Amplify } from "aws-amplify";
-import { getCurrentUser, AuthUser } from 'aws-amplify/auth';
-import outputs from "@/amplify_outputs.json";
-import "@aws-amplify/ui-react/styles.css";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser } from "aws-amplify/auth";
 import { CustomAuthenticator } from "@/components/CustomAuthenticator";
 import { useTranslation } from '@/lib/translations';
 import { Toaster } from "@/components/ui/toaster";
-import { GlobalHeader } from "@/components/GlobalHeader";
-import { Dashboard } from "@/components/Dashboard";
-import { Storage } from 'aws-amplify/storage';
-
-Amplify.configure(outputs);
 
 export type AuthState = "signIn" | "signUp" | "confirmSignUp" | "forgotPassword" | "resetPassword" | "authenticated";
 
-export default function App(): JSX.Element {
-  const [authState, setAuthState] = useState<AuthState>("signIn");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<AuthUser | null>(null);
+export default function HomePage(): JSX.Element {
+  const router = useRouter();
   const { t } = useTranslation();
-
-  const checkUser = useCallback(async () => {
-    try {
-      const userData = await getCurrentUser();
-      setUser(userData);
-      setAuthState("authenticated");
-    } catch (err) {
-      setUser(null);
-      setAuthState("signIn");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    void checkUser();
-  }, [checkUser]);
+    const checkAuth = async () => {
+      try {
+        await getCurrentUser();
+        setIsAuthenticated(true);
+        router.push('/dashboard');
+      } catch (error) {
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void checkAuth();
+  }, [router]);
 
-  const handleAuthStateChange = useCallback((
-    state: AuthState,
-    loading: boolean,
-    userData: AuthUser | null = null
-  ) => {
-    setAuthState(state);
-    setIsLoading(loading);
+  const handleAuthStateChange = (state: AuthState) => {
     if (state === "authenticated") {
-      setUser(userData);
-    } else {
-      setUser(null);
+      router.push('/dashboard');
     }
-  }, []);
+  };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return null;
+  }
+
+  if (isAuthenticated) {
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <CustomAuthenticator onAuthStateChange={handleAuthStateChange}>
-        {authState === "authenticated" && user ? (
-          <>
-            <GlobalHeader />
-            <main className="container mx-auto p-4">
-              <Dashboard />
-            </main>
-          </>
-        ) : null}
-      </CustomAuthenticator>
+      <CustomAuthenticator onAuthStateChange={handleAuthStateChange} />
       <Toaster />
     </div>
   );
